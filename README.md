@@ -291,33 +291,41 @@ The React dashboard will be running at `http://localhost:5173`. Requests to `/ap
 
 All test suites and verification scripts have been executed and verified on the local host:
 
-### 1. Backend Pytest Suite (23 Tests)
+### 1. Backend Pytest Suite (99 Offline Tests + Live Integration Suite)
 
 ```bash
-.\.venv\Scripts\pytest backend/tests -v
+# Run deterministic offline test suite (99 tests)
+.\.venv\Scripts\pytest -m "not integration" -v
+
+# Run full suite including live URL integration tests (100 items)
+.\.venv\Scripts\pytest -v
 ```
-*Output: 23 passed in ~0.8s.*
+*Output: 99 offline tests passed in ~2.4s (covers SSRF blocks, redirect loops, hostile payload parsing, provider fallback chains, and offset calculations).*
 
-### 2. Frontend Vitest Suite (3 Tests)
+### 2. Frontend Vitest & Lint Suite (5 Tests)
 
 ```bash
+# Run unit & component tests
 npm --prefix frontend test
+
+# Run high-performance linter
+npx --prefix frontend oxlint
 ```
-*Output: 3 passed in ~0.25s.*
+*Output: 5 passed in ~0.2s; 0 warnings, 0 errors.*
 
 ### 3. Frontend Production Build
 
 ```bash
 npm --prefix frontend run build
 ```
-*Output: TypeScript typecheck clean, production bundle compiled in ~0.55s.*
+*Output: TypeScript typecheck clean, production bundle compiled with zero errors.*
 
 ### 4. End-to-End CLI Smoke Test
 
 ```bash
 .\.venv\Scripts\python scripts/run_smoke_test.py
 ```
-*Output: 100% of pipeline assertions pass; validates `SUPPORTED_BY_SOURCE`, `CONTRADICTED_BY_SOURCE`, and `NOT_ESTABLISHED_BY_SOURCE` in a single run.*
+*Output: 100% of pipeline assertions pass in <0.05s; validates `SUPPORTED_BY_SOURCE`, `CONTRADICTED_BY_SOURCE`, and `NOT_ESTABLISHED_BY_SOURCE` in a single run.*
 
 ### 5. Export OpenAPI Contract
 
