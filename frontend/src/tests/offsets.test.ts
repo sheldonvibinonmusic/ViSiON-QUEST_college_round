@@ -81,4 +81,31 @@ describe('buildHighlightedSegments', () => {
     const reconstructed = segments.map((s) => s.text).join('')
     expect(reconstructed).toBe(text)
   })
+
+  it('converts backend code-point offsets before slicing text with an emoji', () => {
+    const text = '🧭 Prefix. Claim. Suffix.'
+    const start = Array.from(text.slice(0, text.indexOf('Claim.'))).length
+    const claimLength = Array.from('Claim.').length
+    const finding: ClaimFinding = {
+      claim_id: 'unicode-claim',
+      claim_text: 'Claim.',
+      start_char: start,
+      end_char: start + claimLength,
+      verdict: 'SUPPORTED_BY_SOURCE',
+      explanation: 'Supported',
+      evidence: [],
+      logic_concerns: [],
+      safety_concerns: [],
+      review_priority: 'low',
+      evidence_strength: 0.9,
+      warnings: [],
+    }
+
+    const segments = buildHighlightedSegments(text, [finding])
+    const highlighted = segments.find((segment) => segment.isClaim)
+
+    expect(segments.map((segment) => segment.text).join('')).toBe(text)
+    expect(highlighted?.text).toBe('Claim.')
+    expect(highlighted?.finding?.claim_id).toBe('unicode-claim')
+  })
 })

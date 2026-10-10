@@ -8,6 +8,10 @@ import { HeroContent } from './components/HeroContent'
 import { PartnerLogos } from './components/PartnerLogos'
 import { MobileMenu } from './components/MobileMenu'
 import { AuditorWorkspace } from './components/AuditorWorkspace'
+// Phase 3(c): additive door transition overlay; Scene 1 remains unchanged.
+import { SceneOverlay } from './components/SceneOverlay'
+import { INITIAL_SCENE_STATE } from './scene/sceneMachine'
+import type { SceneMachineState } from './scene/sceneMachine'
 
 export default function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
@@ -16,6 +20,9 @@ export default function App() {
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(() => {
     return typeof window !== 'undefined' && (window.location.hash === '#workspace' || window.location.search.includes('workspace=true'))
   })
+  const [isSceneOverlayVisible, setIsSceneOverlayVisible] = useState(false)
+  // Phase 3(d): mirror scene events so the additive overlay follows real adapter events.
+  const [sceneState, setSceneState] = useState<SceneMachineState>(INITIAL_SCENE_STATE)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [prefillSample, setPrefillSample] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
@@ -32,7 +39,10 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isMenuOpen) setIsMenuOpen(false)
-        if (isWorkspaceOpen) setIsWorkspaceOpen(false)
+        if (isWorkspaceOpen) {
+          setIsWorkspaceOpen(false)
+          setIsSceneOverlayVisible(false)
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -75,6 +85,7 @@ export default function App() {
   }
 
   const handleResetAudit = () => {
+    setIsSceneOverlayVisible(false)
     setActiveAudit(null)
     setSelectedClaimId(null)
     setPrefillSample(false)
@@ -120,7 +131,12 @@ export default function App() {
       {/* Obsidian Frosted Glass Workspace Modal Overlay */}
       <AuditorWorkspace
         isOpen={isWorkspaceOpen}
-        onClose={() => setIsWorkspaceOpen(false)}
+        onClose={() => {
+          setIsWorkspaceOpen(false)
+          setIsSceneOverlayVisible(false)
+        }}
+        setSceneOverlayVisible={setIsSceneOverlayVisible}
+        onSceneStateChange={setSceneState}
         health={health}
         activeAudit={activeAudit}
         setActiveAudit={setActiveAudit}
@@ -128,6 +144,15 @@ export default function App() {
         setSelectedClaimId={setSelectedClaimId}
         prefillSample={prefillSample}
       />
+
+      {/* Phase 3(c): full-screen door motion, shown only during DOOR_OPENING. */}
+      {isSceneOverlayVisible && (
+        <SceneOverlay
+          state={sceneState}
+          onSceneStateChange={setSceneState}
+          onFinished={() => setIsSceneOverlayVisible(false)}
+        />
+      )}
     </div>
   )
 }

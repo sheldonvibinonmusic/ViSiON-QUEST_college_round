@@ -1,5 +1,16 @@
 # Changelog
 
+## Phase 3(d) — Space journey and side swaps
+- Added one full-screen, low-detail Canvas 2D star layer and a CSS focal cluster that glides opposite the thinking panel.
+- Connected the existing scene overlay to the mirrored scene-state events so the A/B/C layout follows `getStageEvents()` while actual backend activity text remains event-sourced.
+- Added the approved silver text sweep, word cross-fades, estimated-beat rail, elapsed-millisecond ticker, and abstract drifting evidence marks.
+- Kept the existing doorway transition, Run flow, workspace modal, and results lifecycle; planet, asteroid, and black-hole visuals remain for Phase 3(e).
+
+## Phase 3(c) — Door opening transition
+- Added an isolated, full-screen doorway overlay with a 700 ms CSS camera push, growing light slit, and one smooth white flash; the existing video and poster assets remain untouched.
+- Measured the video doorway center from a decoded 1664×1248 frame at 2.51 s and accounted for the existing poster fallback's separate center.
+- Added keyboard-accessible Skip and Cancel animation controls; reduced-motion and mobile modes omit the push and flash.
+
 All completed project changes are documented in this file. Uncompleted or planned changes are never recorded as done.
 
 ## [0.7.0] - UI Implementation, Hostile Hardening, Pipeline Stress Testing & Error Fixing
@@ -32,6 +43,15 @@ All completed project changes are documented in this file. Uncompleted or planne
 - Fixed `UnboundLocalError` on `is_incomplete` during domain mismatch audits (`ERR-007`).
 - Fixed `MagicMock` type check and async close compatibility in test runners (`ERR-008`).
 - Fixed provider chain crashes on external provider network failures with isolated try/except blocks (`ERR-009`).
+
+## [Unreleased]
+
+### Added
+- Ctrl+Enter (Windows/Linux) and ⌘+Enter (macOS) submit the existing audit form through its current validation and Run flow.
+
+### Fixed
+- Restored the missing verdict-label and answer-offset utilities, and scoped Python `lib` ignore rules to the repository root so the frontend modules are not ignored.
+- Converted backend Unicode code-point offsets to JavaScript UTF-16 indexes before highlighting claims.
 
 ## [0.6.0] - Phase 6 Documentation, Smoke Testing & Project Polish
 

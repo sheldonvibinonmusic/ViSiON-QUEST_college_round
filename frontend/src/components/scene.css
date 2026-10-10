@@ -1,0 +1,606 @@
+/* Phase 3(c): isolated additions for the measured doorway transition. */
+.scene-door-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.scene-door-light {
+  position: absolute;
+  top: 30.6%;
+  left: 50%;
+  width: clamp(3px, 0.35vw, 5px);
+  height: 39.8%;
+  opacity: 0;
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: center bottom;
+  background: #fff;
+  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.38);
+}
+
+.scene-door-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: #fff;
+  pointer-events: none;
+}
+
+.scene-door-status {
+  position: absolute;
+  left: max(24px, env(safe-area-inset-left));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 13px;
+  line-height: 1.4;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9);
+}
+
+.scene-door-estimate {
+  color: rgba(255, 255, 255, 0.62);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.scene-door-controls {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.9);
+  pointer-events: auto;
+}
+
+.scene-door-controls button {
+  min-width: 56px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scene-door-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.scene-door-controls button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.scene-door-controls button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.scene-screen-reader-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes scene-door-camera-push {
+  from {
+    transform: translateX(calc(-50% - calc(0.5 * var(--u)))) scale(1);
+  }
+  to {
+    transform: translateX(calc(-50% - calc(0.5 * var(--u)))) scale(1.6);
+  }
+}
+
+@keyframes scene-door-slit-open {
+  0% {
+    opacity: 0.12;
+    transform: translateX(-50%) scaleY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+
+@keyframes scene-door-soft-flash {
+  0%, 100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.08;
+  }
+  54% {
+    opacity: 0.38;
+  }
+  68% {
+    opacity: 0.12;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-aspect-ratio: 11/10) {
+  .stage.is-door-opening .plate-video {
+    transform-origin: 50% 50.5%;
+    animation: scene-door-camera-push 700ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  }
+
+  .stage.is-door-opening.is-door-poster .plate-video {
+    transform-origin: 50% 42.7%;
+  }
+
+  .stage.is-door-opening .scene-door-light {
+    animation: scene-door-slit-open 700ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  }
+
+  .stage.is-door-opening .scene-door-flash {
+    animation: scene-door-soft-flash 700ms ease-in-out both;
+  }
+}
+
+.stage.is-door-opening.is-door-retreating .plate-video {
+  animation: none;
+  transform: translateX(calc(-50% - calc(0.5 * var(--u)))) scale(1);
+  transition: transform 260ms ease-out;
+}
+
+.scene-door-overlay.is-retreating .scene-door-light {
+  animation: none;
+  opacity: 0;
+  transform: translateX(-50%) scaleY(0);
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.scene-door-overlay.is-retreating .scene-door-flash {
+  animation: none;
+  opacity: 0;
+}
+
+.scene-door-overlay.is-retreating .scene-door-status,
+.scene-door-overlay.is-retreating .scene-door-controls {
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+}
+
+@media (max-aspect-ratio: 11/10) {
+  .scene-door-light,
+  .scene-door-flash {
+    display: none;
+  }
+
+  .stage.is-door-opening .plate-video,
+  .stage.is-door-opening.is-door-retreating .plate-video {
+    animation: none;
+    transform: none;
+    transition: none;
+  }
+
+  .scene-door-overlay {
+    animation: scene-door-crossfade 220ms ease-out both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage.is-door-opening .plate-video {
+    animation: none;
+    transform: translateX(calc(-50% - calc(0.5 * var(--u)))) scale(1);
+  }
+
+  .scene-door-light,
+  .scene-door-flash {
+    display: none;
+  }
+
+  .scene-door-overlay {
+    animation: scene-door-crossfade 220ms ease-out both;
+  }
+
+  .stage.is-door-opening.is-door-retreating .plate-video {
+    transform: translateX(calc(-50% - calc(0.5 * var(--u)))) scale(1);
+    transition-duration: 1ms;
+  }
+}
+
+@media (max-aspect-ratio: 11/10) and (prefers-reduced-motion: reduce) {
+  .scene-door-overlay[data-journey-active='true'] .scene-door-status,
+  .scene-door-overlay[data-side='left'][data-journey-active='true'] .scene-door-status {
+    transform: translateY(0);
+  }
+}
+
+/* Phase 3(d): concurrent thinking-panel details; all motion is transform/opacity. */
+.scene-thinking-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scene-ticker {
+  color: rgba(255, 255, 255, 0.45);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scene-activity-label {
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+  overflow: hidden;
+}
+
+.scene-activity-word {
+  animation: scene-word-crossfade 280ms ease both;
+}
+
+.scene-stage-shimmer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 36%;
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 4%, rgba(233, 239, 244, 0.46) 48%, transparent 92%);
+  transform: translateX(-130%);
+  animation: scene-stage-shimmer-pass 2500ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+.scene-beat-rail {
+  position: relative;
+  width: 100%;
+  height: 10px;
+  margin-top: 6px;
+}
+
+.scene-beat-track {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scene-beat-node {
+  position: absolute;
+  top: 2px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  background: #050505;
+}
+
+.scene-beat-node-a { left: 0; }
+.scene-beat-node-b { left: calc(50% - 2px); }
+.scene-beat-node-c { right: 0; }
+
+.scene-door-overlay[data-beat='a'] .scene-beat-node-a,
+.scene-door-overlay[data-beat='b'] .scene-beat-node-b,
+.scene-door-overlay[data-beat='c'] .scene-beat-node-c {
+  background: #eef2f5;
+}
+
+.scene-beat-pulse {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 22%;
+  height: 2px;
+  opacity: 0.82;
+  background: linear-gradient(90deg, transparent, rgba(242, 246, 249, 0.92), transparent);
+  animation: scene-beat-pulse-travel 1900ms ease-in-out infinite alternate;
+}
+
+.scene-evidence-fragments {
+  --fragment-shift: 42vw;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.68;
+}
+
+.scene-evidence-fragments span {
+  position: absolute;
+  top: 34%;
+  left: 24%;
+  width: 34px;
+  height: 1px;
+  opacity: 0;
+  background: rgba(228, 235, 241, 0.68);
+  transform: translateX(0);
+  animation: scene-evidence-drift 3600ms ease-in-out infinite;
+}
+
+.scene-evidence-fragments span:nth-child(2) {
+  top: 51%;
+  width: 22px;
+  animation-delay: 450ms;
+}
+
+.scene-evidence-fragments span:nth-child(3) {
+  top: 66%;
+  width: 28px;
+  animation-delay: 900ms;
+}
+
+.scene-door-overlay[data-side='left'] .scene-evidence-fragments {
+  --fragment-shift: -42vw;
+}
+
+.scene-door-overlay[data-side='left'] .scene-evidence-fragments span {
+  left: 76%;
+}
+
+@keyframes scene-word-crossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scene-stage-shimmer-pass {
+  0%, 14% { opacity: 0; transform: translateX(-130%); }
+  28% { opacity: 0.62; }
+  64% { opacity: 0.48; transform: translateX(320%); }
+  76%, 100% { opacity: 0; transform: translateX(320%); }
+}
+
+@keyframes scene-beat-pulse-travel {
+  from { opacity: 0.25; transform: translateX(0); }
+  to { opacity: 0.9; transform: translateX(354%); }
+}
+
+@keyframes scene-evidence-drift {
+  0%, 12% { opacity: 0; transform: translateX(0); }
+  38% { opacity: 0.72; }
+  76%, 100% { opacity: 0; transform: translateX(var(--fragment-shift)); }
+}
+
+@media (max-aspect-ratio: 11/10) {
+  .scene-evidence-fragments {
+    opacity: 0.3;
+  }
+
+  .scene-evidence-fragments span,
+  .scene-door-overlay[data-side='left'] .scene-evidence-fragments span {
+    left: 50%;
+    width: 22px;
+  }
+
+  .scene-door-overlay[data-side='left'] .scene-evidence-fragments {
+    --fragment-shift: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-stage-shimmer,
+  .scene-beat-pulse,
+  .scene-evidence-fragments span {
+    animation: none;
+    opacity: 0.38;
+    transform: none;
+  }
+}
+
+@media (max-aspect-ratio: 11/10) and (prefers-reduced-motion: reduce) {
+  .stage.is-door-opening .plate-video,
+  .stage.is-door-opening.is-door-retreating .plate-video {
+    transform: none;
+    transition: none;
+  }
+}
+
+@keyframes scene-door-crossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Phase 3(d): additive continuous space layer and event-driven A/B/C side layout. */
+.scene-space-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0;
+  background: #050505;
+  transition: opacity 800ms ease;
+}
+
+.scene-space-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-door-overlay[data-journey-active='true'] .scene-space-layer {
+  opacity: 1;
+}
+
+.scene-door-overlay[data-door-complete='true'] .scene-door-light,
+.scene-door-overlay[data-door-complete='true'] .scene-door-flash {
+  animation: none;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.scene-space-focal {
+  --focal-offset: -24vw;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 220px;
+  height: 170px;
+  opacity: 0.7;
+  transform: translate(-50%, -50%) translateX(var(--focal-offset));
+  transition: transform 800ms cubic-bezier(0.22, 0.68, 0.18, 1), opacity 800ms ease;
+}
+
+.scene-space-focal::before,
+.scene-space-focal::after {
+  position: absolute;
+  content: '';
+  background: rgba(229, 237, 243, 0.78);
+}
+
+.scene-space-focal::before {
+  top: 36%;
+  left: 24%;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  box-shadow: 32px 22px 0 0 rgba(229, 237, 243, 0.42), 77px -18px 0 0 rgba(229, 237, 243, 0.7), 121px 31px 0 0 rgba(229, 237, 243, 0.34), 158px -6px 0 0 rgba(229, 237, 243, 0.56), 58px 69px 0 0 rgba(229, 237, 243, 0.58), 142px 84px 0 0 rgba(229, 237, 243, 0.38);
+}
+
+.scene-space-focal::after {
+  top: 29%;
+  left: 47%;
+  width: 1px;
+  height: 12px;
+  opacity: 0.35;
+  transform: rotate(24deg);
+}
+
+.scene-door-overlay[data-side='left'] .scene-space-focal {
+  --focal-offset: 24vw;
+}
+
+.scene-door-status {
+  --panel-offset: 28vw;
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  bottom: auto;
+  width: min(420px, calc(100vw - 48px));
+  min-height: 116px;
+  box-sizing: border-box;
+  padding: 28px 30px;
+  border: 1px solid rgba(232, 238, 243, 0.19);
+  border-radius: 18px;
+  background: rgba(5, 5, 5, 0.76);
+  color: rgba(255, 255, 255, 0.94);
+  transform: translate(-50%, -50%) translateX(var(--panel-offset));
+  transition: transform 800ms cubic-bezier(0.22, 0.68, 0.18, 1), opacity 800ms ease;
+}
+
+.scene-door-overlay[data-side='left'] .scene-door-status {
+  --panel-offset: -28vw;
+}
+
+.scene-door-overlay[data-journey-active='false'] .scene-door-status {
+  top: auto;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: max(24px, env(safe-area-inset-left));
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transform: none;
+  transition: opacity 450ms ease;
+}
+
+.scene-activity-label {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.scene-thinking-kicker {
+  color: rgba(255, 255, 255, 0.58);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scene-door-overlay[data-journey-active='true'] .scene-door-status {
+  opacity: 1;
+}
+
+.scene-door-overlay[data-door-complete='true'][data-journey-active='false'] .scene-door-status {
+  opacity: 0;
+}
+
+.scene-door-overlay .scene-door-controls {
+  z-index: 5;
+}
+
+.scene-door-overlay.is-retreating .scene-space-layer,
+.scene-door-overlay.is-retreating .scene-space-focal,
+.scene-door-overlay.is-retreating .scene-door-status {
+  opacity: 0;
+  transition-duration: 260ms;
+}
+
+@media (max-aspect-ratio: 11/10) {
+  .scene-space-focal,
+  .scene-door-overlay[data-side='left'] .scene-space-focal {
+    --focal-offset: 0;
+    top: 68%;
+    opacity: 0.52;
+    transform: translate(-50%, -50%);
+    transition-duration: 450ms;
+  }
+
+  .scene-door-overlay[data-journey-active='true'] .scene-door-status,
+  .scene-door-overlay[data-side='left'][data-journey-active='true'] .scene-door-status {
+    top: 27%;
+    right: 24px;
+    bottom: auto;
+    left: 24px;
+    width: auto;
+    min-height: 0;
+    padding: 20px 22px;
+    transform: translateY(0);
+    transition-duration: 450ms;
+  }
+
+  .scene-door-overlay[data-journey-active='false'] .scene-door-status {
+    top: auto;
+    left: max(24px, env(safe-area-inset-left));
+    right: auto;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-space-layer,
+  .scene-space-focal,
+  .scene-door-status {
+    transition-duration: 1ms;
+  }
+
+  .scene-space-focal,
+  .scene-door-overlay[data-side='left'] .scene-space-focal {
+    --focal-offset: 0;
+  }
+
+  .scene-door-status,
+  .scene-door-overlay[data-side='left'] .scene-door-status {
+    --panel-offset: 0;
+    transform: translate(-50%, -50%);
+  }
+}

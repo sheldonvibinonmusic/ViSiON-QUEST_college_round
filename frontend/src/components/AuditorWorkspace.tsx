@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X, ShieldCheck, AlertCircle, PlusCircle } from 'lucide-react'
 import type { AuditResponse, HealthResponse } from '../api/client'
 import { submitAudit } from '../api/client'
@@ -8,10 +8,16 @@ import { OriginalAnswerViewer } from './OriginalAnswerViewer'
 import { ClaimList } from './ClaimList'
 import { EvidencePanel } from './EvidencePanel'
 import { ThinkingState } from './ThinkingState'
+// Scene machine hook (phase 3a): lifecycle and estimated events only; no visuals.
+import { sceneMachine } from '../scene/sceneMachine'
+import type { SceneMachineState } from '../scene/sceneMachine'
+import { getStageEvents } from '../scene/stageEvents'
 
 interface AuditorWorkspaceProps {
   isOpen: boolean
   onClose: () => void
+  setSceneOverlayVisible: (visible: boolean) => void
+  onSceneStateChange: (state: SceneMachineState) => void
   health: HealthResponse | null
   activeAudit: AuditResponse | null
   setActiveAudit: (audit: AuditResponse | null) => void
@@ -23,6 +29,8 @@ interface AuditorWorkspaceProps {
 export function AuditorWorkspace({
   isOpen,
   onClose,
+  setSceneOverlayVisible,
+  onSceneStateChange,
   health,
   activeAudit,
   setActiveAudit,
@@ -32,6 +40,7 @@ export function AuditorWorkspace({
 }: AuditorWorkspaceProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const stageEventsAbortRef = useRef<AbortController | null>(null)
 
   if (!isOpen) return null
 
@@ -42,27 +51,56 @@ export function AuditorWorkspace({
     urls?: string[],
     enableWebSearch?: boolean
   ) => {
+    stageEventsAbortRef.current?.abort()
+    const stageEventsAbort = new AbortController()
+    stageEventsAbortRef.current = stageEventsAbort
+    sceneMachine.dispatch({ type: 'AUDIT_STARTED' })
+    onSceneStateChange(sceneMachine.getState())
+    setSceneOverlayVisible(true)
+
+    void (async () => {
+      for await (const event of getStageEvents({ signal: stageEventsAbort.signal })) {
+        sceneMachine.dispatch({ type: 'STAGE_EVENT', event })
+        onSceneStateChange(sceneMachine.getState())
+      }
+    })()
+
     setLoading(true)
     setError(null)
 
     try {
       const response = await submitAudit(answer, sourceText, files, urls, enableWebSearch)
+      sceneMachine.dispatch({ type: 'AUDIT_COMPLETED' })
+      onSceneStateChange(sceneMachine.getState())
       setActiveAudit(response)
       if (response.findings.length > 0) {
         setSelectedClaimId(response.findings[0].claim_id)
       }
     } catch (err: unknown) {
+      sceneMachine.dispatch({ type: 'AUDIT_FAILED' })
+      onSceneStateChange(sceneMachine.getState())
       if (err instanceof Error) {
         setError(err.message)
       } else {
         setError('An unexpected error occurred during the audit.')
       }
     } finally {
+      stageEventsAbort.abort()
+      if (stageEventsAbortRef.current === stageEventsAbort) {
+        stageEventsAbortRef.current = null
+      }
       setLoading(false)
+      setSceneOverlayVisible(false)
     }
   }
 
   const handleReset = () => {
+    stageEventsAbortRef.current?.abort()
+    stageEventsAbortRef.current = null
+    setSceneOverlayVisible(false)
+    sceneMachine.dispatch({ type: 'RESET_REQUESTED' })
+    // Phase 3a has no visuals; later reset motion can delay this completion.
+    sceneMachine.dispatch({ type: 'RESET_COMPLETED' })
     setActiveAudit(null)
     setSelectedClaimId(null)
     setError(null)

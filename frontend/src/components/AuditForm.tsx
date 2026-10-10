@@ -136,6 +136,7 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
     }
   }
 
+  // PHASE 3(b) ADDITION: keyboard shortcut submits through the existing validation and Run flow.
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6 text-[var(--ink)]">
       {/* Sample Loader Header */}
@@ -153,6 +154,9 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
         >
           <Sparkles className="w-3.5 h-3.5 text-zinc-300" /> Load Sample Policy
         </button>
+        <p className="mt-2 text-center text-[11px] text-neutral-500">
+          Press Ctrl+Enter or ⌘+Enter to run
+        </p>
       </div>
 
       {validationError && (
