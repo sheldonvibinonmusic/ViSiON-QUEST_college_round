@@ -134,6 +134,10 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return res.json()
 }
 
+/**
+ * Submits an answer alongside optional text, file attachments, web URLs, or web fallback toggle.
+ * Performs asynchronous audit and returns structured forensic findings.
+ */
 export async function submitAudit(
   answer: string,
   sourceText?: string,
@@ -175,6 +179,9 @@ export async function submitAudit(
   return res.json()
 }
 
+/**
+ * Initiates a browser download of the full raw JSON audit report.
+ */
 export function downloadJsonReport(audit: AuditResponse): void {
   const blob = new Blob([JSON.stringify(audit, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
