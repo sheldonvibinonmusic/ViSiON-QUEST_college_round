@@ -837,3 +837,38 @@ These paths were present as artifacts in the conversation's working environment;
 ---
 
 **End of README content.** Project application implementation, tests, public deployment, exact environment configuration, and measured performance remain NOT SPECIFIED IN CHAT or uncompleted according to the latest confirmation. [Evidence: “Not tested yet” and “no repository yet” | where in chat: late, Stage 2 answers 1 and 9]
+
+
+---
+
+## 20. Implementation and Verification Addendum (2026-10-10)
+
+This section records the verified implementation artifacts, technical decisions, test suites, and repository state established during the hackathon development phases. Existing historical sections (1–19) are preserved unmodified as the baseline specification.
+
+### 20.1 Repository State & Workspace Placement
+- **Repository Remote:** `https://github.com/sheldonvibinonmusic/ViSiON-QUEST_college_round.git`, branch `main`. **Status: IMPLEMENTED.** [Evidence: Git push of commit `d5ef064` verified on local machine]
+- **Root Placement:** The project implementation resides directly in the root workspace (`c:\Users\Sheldon Pais\OneDrive\Desktop\BNB'26 Second Option`), with top-level directories `backend/`, `frontend/`, `scripts/`, `examples/`, and `contracts/`. **Status: IMPLEMENTED.** [Evidence: User decision B1 confirmed root placement directly]
+
+### 20.2 Verified Tech Stack & Versions
+- **Backend:** Python 3.14.2 host virtual environment (`.venv`), FastAPI, Uvicorn, Pydantic v2. **Status: IMPLEMENTED.** [Evidence: verified in `pyproject.toml` and pytest suite]
+- **Retrieval Engine:** `rank-bm25` (`BM25Plus` variant to prevent negative IDF scores on small corpora) with tokenization preserving numbers, currency, and dates. **Status: IMPLEMENTED.** [Evidence: `backend/app/services/retriever.py` and `test_retriever.py`]
+- **Document Parsers:** `pypdf` for PDF (page provenance tracking), `python-docx` for DOCX (paragraphs and tables), and plain text. **Status: IMPLEMENTED.** [Evidence: `backend/app/services/document_parser.py` and `test_parsers.py`]
+- **Segmentation:** Deterministic claim segmentation with abbreviation and decimal guards, quotation boundary preservation, and strict Unicode code-point offset invariant (`answer[start:end] == claim.text`). **Status: IMPLEMENTED.** [Evidence: `backend/app/services/claim_segmenter.py` and `test_offsets.py`]
+- **Verification Logic:** Deterministic rules verifier (`rules_verifier.py`) evaluating numerical/currency discrepancies, date conflicts, and polarity/negation clashes, alongside isolated domain safety flags (`safety_flags.py`) for medical, legal, and financial advisories. **Status: IMPLEMENTED.** [Evidence: `backend/app/services/rules_verifier.py` and `test_verdict_mapper.py`]
+- **NLI Verifier:** Local DeBERTa NLI adapter (`nli_verifier.py`) with lazy loading for `microsoft/deberta-base-mnli` and graceful fallback to `rules_only` mode (`MODEL_FALLBACK_RULES_ONLY`) when torch/transformers are absent or resources constrained. **Status: IMPLEMENTED.** [Evidence: `backend/app/services/nli_verifier.py` and `scripts/check_model.py`]
+- **Frontend:** Node.js LTS v24.20.0, npm 11.19.0, React 19, TypeScript 5.8, Vite 6, Tailwind CSS 4, Lucide React. **Status: IMPLEMENTED.** [Evidence: `frontend/package.json`, Vitest suite, and clean production build]
+
+### 20.3 Verdict Mapping & Summary Contracts
+- **Canonical Verdicts:** All claim findings are strictly mapped to one of four canonical verdicts: `SUPPORTED_BY_SOURCE`, `CONTRADICTED_BY_SOURCE`, `NOT_ESTABLISHED_BY_SOURCE`, and `AMBIGUOUS_OR_CONFLICTING`. **Status: IMPLEMENTED.** [Evidence: User approval B4 and `backend/app/services/verdict_mapper.py`]
+- **Absence of Evidence:** Confirmed invariant that unestablished claims are assigned `NOT_ESTABLISHED_BY_SOURCE` and never automatically labeled false or contradicted. **Status: IMPLEMENTED.** [Evidence: verified in `test_verdict_mapper.py::test_missing_evidence_is_not_contradicted`]
+- **Summary Aggregation:** Findings are aggregated into transparent integer counts without single-percentage score masking. **Status: IMPLEMENTED.** [Evidence: `backend/app/services/summary_service.py`]
+
+### 20.4 Export and Contract Artifacts
+- **OpenAPI Contract:** Machine-readable OpenAPI 3.1.0 specification generated and stored at `contracts/openapi.json`. **Status: IMPLEMENTED.** [Evidence: generated via `scripts/export_openapi.py`]
+- **Report Export:** Markdown report generation via `POST /api/audits/export/markdown` and JSON download helpers in frontend client. **Status: IMPLEMENTED.** [Evidence: `test_audit_api.py::test_markdown_export`]
+
+### 20.5 Verification & Test Evidence
+- **Backend Test Suite:** 23/23 tests passing in `backend/tests/` via pytest (`.\.venv\Scripts\pytest.exe backend/tests -v`). **Status: IMPLEMENTED.**
+- **Frontend Test Suite:** 3/3 tests passing in `frontend/src/tests/` via Vitest (`npm --prefix frontend test`). **Status: IMPLEMENTED.**
+- **Frontend Production Build:** TypeScript compilation (`tsc -b`) and Vite production bundling succeeded in ~550ms with zero errors. **Status: IMPLEMENTED.**
+- **End-to-End Smoke Test:** Full pipeline verified via `scripts/run_smoke_test.py` exercising supported, contradicted, and unestablished claims. **Status: IMPLEMENTED.**
