@@ -33,6 +33,8 @@ def run_smoke_test():
     print(f"Original Answer: {answer}")
     print(f"Source Document Length: {len(policy_text)} characters\n")
 
+    import time
+    start_time = time.perf_counter()
     response = client.post(
         "/api/audits",
         data={
@@ -40,14 +42,16 @@ def run_smoke_test():
             "source_text": policy_text
         }
     )
+    elapsed_sec = time.perf_counter() - start_time
 
     if response.status_code != 200:
-        print(f"FAILED: HTTP {response.status_code}")
+        print(f"FAILED: HTTP {response.status_code} (took {elapsed_sec:.2f}s)")
         print(response.json())
         sys.exit(1)
 
     data = response.json()
     print(f"Audit ID: {data['audit_id']}")
+    print(f"Audit Turnaround Time: {elapsed_sec:.3f}s")
     print(f"Overall Assessment: {data['summary']['assessment']}")
     print(f"Review Recommendation: {data['summary']['review_recommendation']}")
     print(f"Summary Text: {data['summary']['summary_text']}\n")
