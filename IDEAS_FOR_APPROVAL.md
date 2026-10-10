@@ -14,4 +14,8 @@ This document records architectural, algorithmic, and feature proposals for Seco
 | **IDEA-08** | Long audit watchdog ("taking longer than usual") with cancel control | Prevents user confusion on massive source files (>100k chars) by showing a calm reassurance state after 15s and providing a clean cancellation trigger | Small (1 hr) | ₹0 | Low | §7.3, §10.2 | adopt | Awaiting User Approval |
 | **IDEA-09** | Signature doorway portal glow tied to real pipeline progression | Synthesizes the cinematic video doorway with the real verification pipeline; door light intensity elevates from 0.2 to 0.7 as stages complete | Small (1 hr) | ₹0 | Low | §7.1 | adopt | Awaiting User Approval |
 | **IDEA-10** | Network-aware video optimizer with still poster frame fallback | Detects slow connections (`navigator.connection.saveData` or low effectiveType) to skip MP4 download, always providing a high-contrast still frame | Small (1 hr) | ₹0 | Low | Base Spec, §13 | adopt | Awaiting User Approval |
+| **IDEA-11** | Printable report view / browser PDF export | Formats the forensic findings and evidence passages into a clean paginated print layout using `@media print` | Small (1 hr) | ₹0 | Low | §9.9 | adopt | Awaiting User Approval |
+| **IDEA-12** | Keyboard shortcuts for forensic navigation | Enables `J` / `K` keys to step through claim cards, and `?` for a quick shortcuts cheat sheet modal | Small (1 hr) | ₹0 | Low | §7.2, §9.7 | adopt | Awaiting User Approval |
+| **IDEA-13** | Hover preview for verified URL provenance links | Displays title and domain certificate icon in a lightweight tooltip before navigating to external evidence URLs | Small (0.5 hr) | ₹0 | Low | §7.2 | adopt | Awaiting User Approval |
+
 
