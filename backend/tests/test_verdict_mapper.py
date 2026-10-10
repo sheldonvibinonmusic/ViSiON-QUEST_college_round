@@ -8,7 +8,7 @@ Verifies:
 import json
 from pathlib import Path
 
-from backend.app.schemas import Claim, FactualVerdict
+from backend.app.schemas import Claim, FactualVerdict, EvidenceReference
 from backend.app.services.document_parser import parse_plain_text
 from backend.app.services.source_chunks import chunk_document
 from backend.app.services.retriever import BM25Retriever
@@ -92,5 +92,50 @@ def test_safety_flags_are_separated_from_verdict():
     finding = map_verdict_for_claim(claim, candidate_evidence=[], nli_verifier=None)
     assert len(finding.safety_concerns) > 0
     assert "Health/Medical advisory" in finding.safety_concerns[0]
-    # Factually, since no source was provided, it is not established, not failed/errored
     assert finding.verdict == FactualVerdict.NOT_ESTABLISHED_BY_SOURCE
+    assert finding.verdict != FactualVerdict.CONTRADICTED_BY_SOURCE
+
+def test_conflicting_candidates_yield_ambiguous_verdict():
+    """
+    CRITICAL RULE (§2, §3.1): When two candidate passages conflict (one supports, one contradicts),
+    the verdict must be AMBIGUOUS_OR_CONFLICTING.
+    """
+    claim = Claim(
+        claim_id="clm_conflict",
+        text="Employees receive a $500 equipment reimbursement.",
+        start_char=0,
+        end_char=49,
+        parent_sentence="Employees receive a $500 equipment reimbursement."
+    )
+
+    candidate_supporting = EvidenceReference(
+        evidence_id="evi_1",
+        source_id="src_1",
+        source_name="Policy A.txt",
+        quote="Employees receive a $500 equipment reimbursement for home offices.",
+        start_char=0,
+        end_char=66,
+        relation="candidate",
+        retrieval_rank=1
+    )
+
+    candidate_contradicting = EvidenceReference(
+        evidence_id="evi_2",
+        source_id="src_2",
+        source_name="Policy B.txt",
+        quote="Employees receive no equipment reimbursement and no office stipends.",
+        start_char=0,
+        end_char=68,
+        relation="candidate",
+        retrieval_rank=2
+    )
+
+    finding = map_verdict_for_claim(
+        claim,
+        candidate_evidence=[candidate_supporting, candidate_contradicting],
+        nli_verifier=None
+    )
+
+    assert finding.verdict == FactualVerdict.AMBIGUOUS_OR_CONFLICTING
+    assert "conflicting or ambiguous evidence" in finding.explanation
+

@@ -4,18 +4,22 @@ Strictly local-first with zero mandatory external API keys.
 """
 from typing import List
 import os
+from dotenv import load_dotenv
+
+# Load local .env if present
+load_dotenv()
 
 class Settings:
     APP_ENV: str = os.getenv("APP_ENV", "development")
     HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8000"))
     
-    # CORS: Allow frontend Vite dev server and local host
+    # CORS: Allow frontend Vite dev server, preview, and local host
     CORS_ORIGINS: List[str] = [
         origin.strip()
         for origin in os.getenv(
             "CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:4173,http://127.0.0.1:4173"
         ).split(",")
         if origin.strip()
     ]

@@ -70,9 +70,21 @@ def map_verdict_for_claim(
     else:
         warnings.append(WarningCode.MODEL_FALLBACK_RULES_ONLY.value)
 
-    # Determine Verdict
-    # Priority A: Contradiction via rules or high NLI contradiction
-    if rule_eval.is_contradiction:
+    # Check for conflicting evidence across multiple candidate passages
+    second_eval = evaluate_rules(claim.text, candidate_evidence[1].quote) if len(candidate_evidence) > 1 else None
+
+    # Priority A: Multiple candidates provide conflicting evidence
+    if second_eval and (
+        (rule_eval.is_supported and second_eval.is_contradiction) or
+        (rule_eval.is_contradiction and second_eval.is_supported)
+    ):
+        verdict = FactualVerdict.AMBIGUOUS_OR_CONFLICTING
+        explanation = "Candidate passages in source documents provide conflicting or ambiguous evidence."
+        review_priority = "medium"
+        evidence_strength = 0.5
+
+    # Priority B: Contradiction via rules or high NLI contradiction
+    elif rule_eval.is_contradiction:
         verdict = FactualVerdict.CONTRADICTED_BY_SOURCE
         explanation = f"Source evidence contradicts claim: {' '.join(rule_eval.reasons)}"
         review_priority = "high"
@@ -84,7 +96,7 @@ def map_verdict_for_claim(
         review_priority = "high"
         evidence_strength = nli_scores["contradiction"]
 
-    # Priority B: Support via rules or high NLI entailment
+    # Priority C: Support via rules or high NLI entailment
     elif rule_eval.is_supported or (nli_scores and nli_scores.get("entailment", 0.0) >= 0.65):
         verdict = FactualVerdict.SUPPORTED_BY_SOURCE
         reasons_text = " ".join(rule_eval.reasons) if rule_eval.reasons else "Direct alignment with source passage."
@@ -92,20 +104,6 @@ def map_verdict_for_claim(
         review_priority = "low"
         evidence_strength = nli_scores.get("entailment", 0.85) if nli_scores else 0.85
 
-    # Priority C: Multiple candidates have conflicting polarity
-    elif len(candidate_evidence) > 1:
-        second_eval = evaluate_rules(claim.text, candidate_evidence[1].quote)
-        if (rule_eval.is_supported and second_eval.is_contradiction) or \
-           (rule_eval.is_contradiction and second_eval.is_supported):
-            verdict = FactualVerdict.AMBIGUOUS_OR_CONFLICTING
-            explanation = "Candidate passages in source documents provide conflicting or ambiguous evidence."
-            review_priority = "medium"
-            evidence_strength = 0.5
-        else:
-            verdict = FactualVerdict.NOT_ESTABLISHED_BY_SOURCE
-            explanation = "Candidate source passages mention related topics but do not sufficiently establish or contradict the claim."
-            review_priority = "medium"
-            evidence_strength = 0.3
     else:
         # Default fallback: Insufficient evidence to substantiate or disprove
         verdict = FactualVerdict.NOT_ESTABLISHED_BY_SOURCE

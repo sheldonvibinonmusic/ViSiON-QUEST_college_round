@@ -84,11 +84,28 @@ export interface AuditResponse {
   created_at: string
 }
 
+function extractErrorMessage(errorData: any, defaultMsg: string): string {
+  if (typeof errorData?.detail?.message === 'string') {
+    return errorData.detail.message
+  }
+  if (typeof errorData?.detail === 'string') {
+    return errorData.detail
+  }
+  if (Array.isArray(errorData?.detail) && errorData.detail.length > 0) {
+    const first = errorData.detail[0]
+    return first?.msg || first?.message || JSON.stringify(first)
+  }
+  if (typeof errorData?.message === 'string') {
+    return errorData.message
+  }
+  return defaultMsg
+}
+
 export async function fetchHealth(): Promise<HealthResponse> {
   const res = await fetch('/api/health')
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}))
-    throw new Error(errorData.detail?.message || `Health check failed with status ${res.status}`)
+    throw new Error(extractErrorMessage(errorData, `Health check failed with status ${res.status}`))
   }
   return res.json()
 }
@@ -118,7 +135,7 @@ export async function submitAudit(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}))
-    throw new Error(errorData.detail?.message || `Audit failed with HTTP status ${res.status}`)
+    throw new Error(extractErrorMessage(errorData, `Audit failed with HTTP status ${res.status}`))
   }
 
   return res.json()
