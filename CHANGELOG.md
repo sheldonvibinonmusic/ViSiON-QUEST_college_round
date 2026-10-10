@@ -13,6 +13,28 @@
 
 All completed project changes are documented in this file. Uncompleted or planned changes are never recorded as done.
 
+## [0.8.0] - Contract Synchronization, Verification Tooling & Telemetry Encodings
+
+### Added
+- Export OpenAPI CLI Telemetry (`scripts/export_openapi.py`):
+  - Displays exported API route count and formatted schema file size in kilobytes.
+- OpenAPI Contract Synchronization (`contracts/openapi.json`):
+  - Regenerated contract specification reflecting `SourceFit`, `EvidenceOrigin`, and web evidence search response models.
+- Smoke Test Performance Benchmark (`scripts/run_smoke_test.py`):
+  - Measures sub-second audit pipeline execution latency and logs turnaround time.
+- Span Coverage Telemetry (`backend/app/util/offsets.py`, `backend/tests/test_offsets.py`):
+  - Added `calculate_char_coverage` utility to compute non-overlapping claim character coverage with full test suite.
+- Source Fit UI Badge Configuration (`frontend/src/lib/labels.ts`, `frontend/src/tests/verdict-labels.test.ts`):
+  - Added `SOURCE_FIT_CONFIG` styling definitions and Vitest assertion suite covering all 4 domain fitness states.
+- Proposals Ledger Extension (`IDEAS_FOR_APPROVAL.md`):
+  - Registered `IDEA-24` (Tabular CSV audit export) and `IDEA-25` (Sub-string whitespace discrepancies).
+
+### Refactored
+- `VerdictBadge.tsx`: Added `role="status"`, descriptive `aria-label` screen reader announcements, and JSDoc prop contracts.
+- `citation_checker.py`: Hoisted `MIN_CITATION_OVERLAP_RATIO` constant with docstring explaining token predicate heuristics.
+- `validation.py`: Enforced explicit `settings.MAX_URLS` limit in `validate_urls_metadata`.
+- `README.md`: Consolidated test execution commands and updated accurate pass counts (100 backend + 6 frontend tests).
+
 ## [0.7.0] - UI Implementation, Hostile Hardening, Pipeline Stress Testing & Error Fixing
 
 ### Added
