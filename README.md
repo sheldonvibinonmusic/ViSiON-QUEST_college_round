@@ -79,6 +79,16 @@ flowchart TD
   - Evaluates premise-hypothesis pairs against `microsoft/deberta-base-mnli`.
   - Dynamic runtime label mapping (`entailment`, `contradiction`, `neutral`).
   - Seamlessly falls back to `rules_only` mode (`MODEL_FALLBACK_RULES_ONLY`) if PyTorch/Transformers are not installed or resources are constrained.
+- **Web URL Ingestion & Strict SSRF Defense:**
+  - Direct web URL ingestion tab with multi-URL support (capped at 5 URLs).
+  - Pre-flight DNS validation blocking private, loopback, and cloud instance metadata IPs (`169.254.169.254`).
+  - Chunk-by-chunk stream byte cap (2 MiB), gzip bomb protection, and polite `robots.txt` enforcement.
+- **Source Fit & Domain Mismatch Defense:**
+  - Pre-audit lexical coverage grading (`RELEVANT`, `PARTIALLY_RELEVANT`, `OFF_TOPIC`).
+  - Flags domain mismatches with an amber advisory banner, preventing false contradictions on uncovered topics.
+- **Evidence Provenance & Multi-Source Corroboration:**
+  - Badges distinguish `User File`, `Web URL`, `Wikipedia`, `arXiv`, `Crossref`, and `Web Search` sources.
+  - Corroborating independent sources counter prevents reliance on isolated web claims.
 - **Calm Forensic Dashboard UI:**
   - Interactive original answer viewer with color-coded, clickable claim highlights.
   - Side-by-side evidence passage inspector displaying source quotes, page provenance, and retrieval rankings.
@@ -91,14 +101,14 @@ flowchart TD
 
 | Layer | Technology | Purpose | Verification Status |
 |---|---|---|---|
-| **Backend Framework** | Python 3.11+ / 3.14.2 + FastAPI | Async REST API, OpenAPI docs | Verified (23/23 tests pass) |
+| **Backend Framework** | Python 3.11+ / 3.14.2 + FastAPI | Async REST API, OpenAPI docs | Verified (99/99 offline tests pass) |
 | **Data Validation** | Pydantic v2 | Strict schema enforcement | Verified |
 | **Document Parsers** | `pypdf`, `python-docx` | PDF & DOCX text extraction | Verified |
 | **Retrieval Engine** | `rank-bm25` (`BM25Plus`) | Corpus indexing & evidence search | Verified |
 | **Local NLI** | `microsoft/deberta-base-mnli` | Zero-shot premise-hypothesis inference | Verified with rules-only fallback |
-| **Frontend Framework** | React 19 + TypeScript + Vite 6 | Forensic audit dashboard | Verified (Clean build in ~550ms) |
+| **Frontend Framework** | React 19 + TypeScript + Vite 6 | Forensic audit dashboard | Verified (Clean build in ~280ms) |
 | **Styling & UI** | Tailwind CSS 4 + Lucide React | Modern typography & accessible badges | Verified |
-| **Testing** | pytest, httpx, Vitest | Unit & integration test suites | Verified (26 tests total passing) |
+| **Testing** | pytest, httpx, Vitest | Unit, hostile, & integration suites | Verified (99 offline + 13 real URL tests pass) |
 
 ---
 
@@ -112,16 +122,21 @@ BNB'26 Second Option/
 │   │   │   └── audit_routes.py       # Health check, POST /api/audits, export endpoints
 │   │   ├── services/
 │   │   │   ├── audit_service.py       # Pipeline orchestrator & Markdown generator
+│   │   │   ├── citation_checker.py    # Substantive quote alignment & claim coverage
 │   │   │   ├── claim_segmenter.py     # Deterministic sentence & offset segmentation
+│   │   │   ├── cost_guard.py          # Query sanitization & query budget caps
 │   │   │   ├── document_parser.py     # TXT, PDF, DOCX parsers
 │   │   │   ├── nli_verifier.py        # Local DeBERTa loader with rules-only fallback
 │   │   │   ├── retriever.py           # BM25Plus retrieval engine
 │   │   │   ├── rules_verifier.py      # Numerical, date, & polarity conflict rules
 │   │   │   ├── safety_flags.py        # Medical, legal, & financial advisory scanner
 │   │   │   ├── source_chunks.py       # Word-based chunking with page provenance
+│   │   │   ├── source_fit.py          # Domain alignment & lexical coverage scoring
 │   │   │   ├── summary_service.py     # Integer summary count aggregator
+│   │   │   ├── url_fetcher.py         # URL scraping with SSRF & gzip bomb defenses
 │   │   │   ├── validation.py          # Input size, file count, & character limits
-│   │   │   └── verdict_mapper.py      # Canonical verdict assignment
+│   │   │   ├── verdict_mapper.py      # Canonical verdict assignment
+│   │   │   └── web_evidence/          # Keyless Wikipedia/arXiv/Crossref search chain
 │   │   ├── config.py                  # AuditConfig & environment settings
 │   │   ├── errors.py                  # SecondOpinionError hierarchy & HTTP handlers
 │   │   ├── main.py                    # FastAPI application entrypoint
@@ -129,11 +144,20 @@ BNB'26 Second Option/
 │   └── tests/
 │       ├── fixtures/                  # Synthetic test policy & dates fixtures
 │       ├── test_audit_api.py          # End-to-end API integration tests
+│       ├── test_benchmark_suite.py    # 20-case core benchmark evaluation suite
+│       ├── test_citation_checker.py   # Citation verification unit tests
+│       ├── test_cost_guard.py         # Query privacy & budget cap tests
 │       ├── test_health.py             # Health check & schema tests
+│       ├── test_hostile_server.py     # Local hostile server SSRF & bomb attack tests
 │       ├── test_offsets.py            # Claim segmentation & offset invariant tests
 │       ├── test_parsers.py            # PDF, DOCX, TXT parser tests
+│       ├── test_pipeline_stress.py    # 15 pipeline edge cases & concurrency tests
+│       ├── test_real_urls.py          # Polite real public URLs integration suite
 │       ├── test_retriever.py          # BM25Plus retrieval ranking tests
-│       └── test_verdict_mapper.py     # Verdict mapping & safety flag tests
+│       ├── test_source_fit.py         # Source fit lexical overlap tests
+│       ├── test_url_fetcher.py        # URL ingestion unit tests
+│       ├── test_verdict_mapper.py     # Verdict mapping & safety flag tests
+│       └── test_web_evidence.py       # Keyless provider chain tests
 ├── contracts/
 │   └── openapi.json                   # Exported OpenAPI 3.1.0 schema
 ├── examples/
