@@ -34,7 +34,7 @@
           "audit"
         ],
         "summary": "Create Audit",
-        "description": "Run a source-grounded audit synchronously against provided source text and/or files.",
+        "description": "Run a source-grounded audit synchronously against provided source text, files, URLs, or web search.",
         "operationId": "create_audit_api_audits_post",
         "requestBody": {
           "content": {
@@ -181,6 +181,16 @@
           "created_at": {
             "type": "string",
             "title": "Created At"
+          },
+          "source_fit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceFitSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -281,6 +291,50 @@
               }
             ],
             "title": "Files"
+          },
+          "urls": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urls"
+          },
+          "check_source_fit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Source Fit"
+          },
+          "min_source_fit_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Source Fit Score"
+          },
+          "enable_web_search": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enable Web Search"
           }
         },
         "type": "object",
@@ -338,6 +392,7 @@
           "review_priority": {
             "type": "string",
             "title": "Review Priority",
+            "description": "Triage priority: 'low', 'medium', or 'high'",
             "default": "low"
           },
           "evidence_strength": {
@@ -363,6 +418,12 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "independent_sources_agreeing": {
+            "type": "integer",
+            "title": "Independent Sources Agreeing",
+            "description": "Number of distinct sources corroborating the finding",
+            "default": 1
           }
         },
         "type": "object",
@@ -374,7 +435,8 @@
           "verdict",
           "explanation"
         ],
-        "title": "ClaimFinding"
+        "title": "ClaimFinding",
+        "description": "Forensic evaluation finding for an individual decomposed claim."
       },
       "EvidenceReference": {
         "properties": {
@@ -431,6 +493,48 @@
           "retrieval_rank": {
             "type": "integer",
             "title": "Retrieval Rank"
+          },
+          "origin_type": {
+            "type": "string",
+            "title": "Origin Type",
+            "description": "Origin provenance: 'user_document', 'user_url', 'wikipedia', 'scholarly_arxiv', 'scholarly_crossref', or 'web_search'",
+            "default": "user_document"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url",
+            "description": "External origin URL if source was retrieved online"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At",
+            "description": "UTC timestamp of retrieval"
+          },
+          "citation_verified": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citation Verified",
+            "description": "Whether citation covers substantive claim content"
           }
         },
         "type": "object",
@@ -444,7 +548,8 @@
           "relation",
           "retrieval_rank"
         ],
-        "title": "EvidenceReference"
+        "title": "EvidenceReference",
+        "description": "Substantive evidence quote retrieved from a source document or web origin.\nPreserves exact character offsets and origin provenance."
       },
       "FactualVerdict": {
         "type": "string",
@@ -568,6 +673,95 @@
           "character_count"
         ],
         "title": "SourceDocument"
+      },
+      "SourceFitDocument": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "fit_level": {
+            "$ref": "#/components/schemas/SourceFitLevel"
+          },
+          "fit_score": {
+            "type": "number",
+            "title": "Fit Score"
+          },
+          "matched_terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched Terms"
+          },
+          "missing_topics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Topics"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "filename",
+          "fit_level",
+          "fit_score",
+          "reason"
+        ],
+        "title": "SourceFitDocument"
+      },
+      "SourceFitLevel": {
+        "type": "string",
+        "enum": [
+          "RELEVANT",
+          "PARTIALLY_RELEVANT",
+          "OFF_TOPIC"
+        ],
+        "title": "SourceFitLevel"
+      },
+      "SourceFitSummary": {
+        "properties": {
+          "overall_fit": {
+            "$ref": "#/components/schemas/SourceFitLevel"
+          },
+          "average_fit_score": {
+            "type": "number",
+            "title": "Average Fit Score"
+          },
+          "all_sources_off_topic": {
+            "type": "boolean",
+            "title": "All Sources Off Topic"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/SourceFitDocument"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall_fit",
+          "average_fit_score",
+          "all_sources_off_topic",
+          "explanation"
+        ],
+        "title": "SourceFitSummary"
       },
       "SystemLimits": {
         "properties": {
