@@ -13,7 +13,9 @@ export default function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [activeAudit, setActiveAudit] = useState<AuditResponse | null>(null)
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null)
-  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false)
+  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(() => {
+    return typeof window !== 'undefined' && (window.location.hash === '#workspace' || window.location.search.includes('workspace=true'))
+  })
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [prefillSample, setPrefillSample] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })

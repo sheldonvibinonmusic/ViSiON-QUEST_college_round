@@ -1,9 +1,62 @@
-import { FileText, Bookmark, Hash, AlertCircle } from 'lucide-react'
+import {
+  FileText,
+  Bookmark,
+  Hash,
+  AlertCircle,
+  Globe,
+  ExternalLink,
+  CheckCircle2,
+  BookOpen,
+  GraduationCap,
+  Search,
+} from 'lucide-react'
 import type { ClaimFinding } from '../api/client'
 import { VerdictBadge } from './VerdictBadge'
 
 interface EvidencePanelProps {
   finding: ClaimFinding | null
+}
+
+function getOriginBadge(originType?: string) {
+  switch (originType) {
+    case 'user_url':
+      return (
+        <span className="flex items-center gap-1 bg-sky-950/40 border border-sky-500/30 px-1.5 py-0.5 rounded text-sky-300 text-[10px]">
+          <Globe className="w-2.5 h-2.5 text-sky-400" /> Web URL
+        </span>
+      )
+    case 'wikipedia':
+      return (
+        <span className="flex items-center gap-1 bg-slate-900 border border-white/20 px-1.5 py-0.5 rounded text-neutral-300 text-[10px]">
+          <BookOpen className="w-2.5 h-2.5 text-neutral-400" /> Wikipedia
+        </span>
+      )
+    case 'scholarly_arxiv':
+      return (
+        <span className="flex items-center gap-1 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded text-emerald-300 text-[10px]">
+          <GraduationCap className="w-2.5 h-2.5 text-emerald-400" /> arXiv
+        </span>
+      )
+    case 'scholarly_crossref':
+      return (
+        <span className="flex items-center gap-1 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded text-emerald-300 text-[10px]">
+          <GraduationCap className="w-2.5 h-2.5 text-emerald-400" /> Crossref
+        </span>
+      )
+    case 'web_search':
+      return (
+        <span className="flex items-center gap-1 bg-sky-950/40 border border-sky-500/30 px-1.5 py-0.5 rounded text-sky-300 text-[10px]">
+          <Search className="w-2.5 h-2.5 text-sky-400" /> Web Search
+        </span>
+      )
+    case 'user_document':
+    default:
+      return (
+        <span className="flex items-center gap-1 bg-zinc-900 border border-white/10 px-1.5 py-0.5 rounded text-neutral-300 text-[10px]">
+          <FileText className="w-2.5 h-2.5 text-neutral-400" /> Document
+        </span>
+      )
+  }
 }
 
 export function EvidencePanel({ finding }: EvidencePanelProps) {
@@ -58,13 +111,20 @@ export function EvidencePanel({ finding }: EvidencePanelProps) {
                 key={evi.evidence_id || idx}
                 className="p-3.5 rounded-xl border border-white/10 bg-[#080808] space-y-2 text-xs"
               >
-                {/* Source Provenance Metadata (§5.1, §9.2) */}
-                <div className="flex items-center justify-between text-[11px] text-neutral-400 font-mono">
-                  <span className="flex items-center gap-1 text-white font-medium truncate max-w-[180px]">
-                    <FileText className="w-3 h-3 shrink-0 text-neutral-400" />
-                    {evi.source_name}
-                  </span>
+                {/* Source Provenance Metadata (§5.1, UI_HANDOFF_NEEDS #4) */}
+                <div className="flex items-center justify-between text-[11px] text-neutral-400 font-mono flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {getOriginBadge(evi.origin_type)}
+                    <span className="text-white font-medium truncate max-w-[150px]" title={evi.source_name}>
+                      {evi.source_name}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {evi.citation_verified && (
+                      <span className="flex items-center gap-0.5 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded text-emerald-300 text-[10px]">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" /> Verified Citation
+                      </span>
+                    )}
                     {evi.page_number && (
                       <span className="flex items-center gap-0.5 bg-white/10 px-1.5 py-0.5 rounded text-neutral-200 text-[10px]">
                         <Bookmark className="w-2.5 h-2.5" /> Page {evi.page_number}
@@ -81,13 +141,26 @@ export function EvidencePanel({ finding }: EvidencePanelProps) {
                   "{evi.quote.trim()}"
                 </blockquote>
 
-                <div className="text-[10px] font-mono text-neutral-500 flex items-center justify-between">
+                <div className="text-[10px] font-mono text-neutral-500 flex items-center justify-between flex-wrap gap-2">
                   <span>
                     Offsets: [{evi.start_char}..{evi.end_char}]
                   </span>
-                  <span className="uppercase text-neutral-400 font-medium">
-                    Relation: {evi.relation}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {evi.source_url && (
+                      <a
+                        href={evi.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 hover:underline cursor-pointer"
+                        title={evi.source_url}
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" /> View Link
+                      </a>
+                    )}
+                    <span className="uppercase text-neutral-400 font-medium">
+                      Relation: {evi.relation}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

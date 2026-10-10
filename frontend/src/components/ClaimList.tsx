@@ -57,11 +57,16 @@ export function ClaimList({ findings, selectedClaimId, onSelectClaim }: ClaimLis
                     </div>
                   )}
 
-                  <div className="flex items-center gap-3 text-[11px] text-neutral-500 pt-1 font-mono">
+                  <div className="flex items-center gap-3 text-[11px] text-neutral-500 pt-1 font-mono flex-wrap">
                     <span className="flex items-center gap-1">
                       <FileSearch className="w-3 h-3 text-neutral-400" />
                       {finding.evidence.length} evidence passage(s) retrieved
                     </span>
+                    {Boolean(finding.independent_sources_agreeing && finding.independent_sources_agreeing > 1) && (
+                      <span className="flex items-center gap-1 text-emerald-300 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[10px]">
+                        {finding.independent_sources_agreeing} independent sources agree
+                      </span>
+                    )}
                   </div>
                 </div>
 

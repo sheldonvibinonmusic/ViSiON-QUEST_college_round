@@ -40,6 +40,10 @@ export interface EvidenceReference {
   end_char: number
   relation: string
   retrieval_rank: number
+  origin_type?: 'user_document' | 'user_url' | 'wikipedia' | 'scholarly_arxiv' | 'scholarly_crossref' | 'web_search' | string
+  source_url?: string | null
+  retrieved_at?: string | null
+  citation_verified?: boolean
 }
 
 export interface ClaimFinding {
@@ -56,6 +60,25 @@ export interface ClaimFinding {
   evidence_strength: number
   model_details?: Record<string, unknown> | null
   warnings: string[]
+  independent_sources_agreeing?: number
+}
+
+export interface SourceFitDocument {
+  source_id: string
+  filename: string
+  fit_level: 'RELEVANT' | 'PARTIALLY_RELEVANT' | 'OFF_TOPIC'
+  fit_score: number
+  matched_terms: string[]
+  missing_topics: string[]
+  reason: string
+}
+
+export interface SourceFitSummary {
+  overall_fit: 'RELEVANT' | 'PARTIALLY_RELEVANT' | 'OFF_TOPIC'
+  average_fit_score: number
+  all_sources_off_topic: boolean
+  documents: SourceFitDocument[]
+  explanation: string
 }
 
 export interface AuditSummary {
@@ -82,6 +105,7 @@ export interface AuditResponse {
   warnings: string[]
   engine_metadata: Record<string, unknown>
   created_at: string
+  source_fit?: SourceFitSummary | null
 }
 
 function extractErrorMessage(errorData: any, defaultMsg: string): string {
@@ -113,7 +137,9 @@ export async function fetchHealth(): Promise<HealthResponse> {
 export async function submitAudit(
   answer: string,
   sourceText?: string,
-  files?: File[]
+  files?: File[],
+  urls?: string[],
+  enableWebSearch?: boolean
 ): Promise<AuditResponse> {
   const formData = new FormData()
   formData.append('answer', answer)
@@ -126,6 +152,14 @@ export async function submitAudit(
     for (const file of files) {
       formData.append('files', file)
     }
+  }
+
+  if (urls && urls.length > 0) {
+    formData.append('urls', urls.join('\n'))
+  }
+
+  if (enableWebSearch !== undefined) {
+    formData.append('enable_web_search', enableWebSearch ? 'true' : 'false')
   }
 
   const res = await fetch('/api/audits', {

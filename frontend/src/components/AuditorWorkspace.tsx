@@ -38,13 +38,15 @@ export function AuditorWorkspace({
   const handleAuditSubmit = async (
     answer: string,
     sourceText?: string,
-    files?: File[]
+    files?: File[],
+    urls?: string[],
+    enableWebSearch?: boolean
   ) => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await submitAudit(answer, sourceText, files)
+      const response = await submitAudit(answer, sourceText, files, urls, enableWebSearch)
       setActiveAudit(response)
       if (response.findings.length > 0) {
         setSelectedClaimId(response.findings[0].claim_id)
