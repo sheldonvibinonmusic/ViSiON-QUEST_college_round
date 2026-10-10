@@ -21,6 +21,10 @@ GENERIC_ENTITY_WORDS: Set[str] = {
     "state", "states", "union", "department", "agency"
 }
 
+# Minimum fraction of non-stop-word claim tokens that must be confirmed in the candidate quote
+MIN_CITATION_OVERLAP_RATIO: float = 0.35
+
+
 def extract_named_entities(text: str) -> Set[str]:
     """
     Extract capitalized proper noun sequences (e.g. 'Albert Einstein', 'James Webb', 'Mars').
@@ -82,7 +86,7 @@ def verify_citation_support(claim_text: str, quote_text: str) -> Tuple[bool, str
     matched_words = claim_words.intersection(quote_words)
     overlap_ratio = len(matched_words) / len(claim_words)
 
-    if overlap_ratio < 0.35:
+    if overlap_ratio < MIN_CITATION_OVERLAP_RATIO:
         return False, f"Low substantive overlap ({overlap_ratio:.0%}); quote lacks core predicates."
 
     return True, f"Substantive overlap ({overlap_ratio:.0%}) confirms key entities and predicates."
