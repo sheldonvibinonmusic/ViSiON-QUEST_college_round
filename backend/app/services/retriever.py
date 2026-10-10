@@ -18,6 +18,12 @@ def tokenize(text: str) -> List[str]:
     return re.findall(r'\$?\d+(?:\.\d+)?%?|[a-zA-Z0-9_-]+', text.lower())
 
 class BM25Retriever:
+    """
+    In-memory BM25 retrieval engine for matching query claims to candidate evidence chunks.
+
+    Defaults to BM25Plus scoring to avoid negative IDF penalties when searching concise
+    or short corpora, falling back to standard BM25Okapi if necessary.
+    """
     def __init__(self, chunks: List[SourceChunk]):
         self.chunks = chunks
         self.tokenized_corpus = [tokenize(c.text) for c in chunks]
@@ -40,7 +46,16 @@ class BM25Retriever:
     ) -> List[EvidenceReference]:
         """
         Retrieve the top candidate chunks for a given query (claim).
-        Returns EvidenceReference objects ordered by retrieval score.
+
+        Args:
+            query: Claim text or search string to match.
+            source_name_map: Mapping from source_id to display name.
+            chunk_provenance_map: Metadata dictionary tracking chunk origin and source URLs.
+            top_k: Maximum number of candidate passages to return.
+            min_overlap: Minimum shared token count required if BM25 score is non-positive.
+
+        Returns:
+            List of EvidenceReference objects ordered by retrieval score.
         """
         if not self.bm25 or not self.chunks:
             return []
