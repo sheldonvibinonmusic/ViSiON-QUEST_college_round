@@ -64,10 +64,12 @@ def run_smoke_test():
 
     # Verifications
     findings = data['findings']
+    assert data.get('status') == 'completed', "Audit status should be completed"
     assert len(findings) == 3, f"Expected 3 claims, got {len(findings)}"
     assert findings[0]['verdict'] == "SUPPORTED_BY_SOURCE", "Claim 1 should be SUPPORTED"
     assert findings[1]['verdict'] == "CONTRADICTED_BY_SOURCE", "Claim 2 should be CONTRADICTED"
     assert findings[2]['verdict'] == "NOT_ESTABLISHED_BY_SOURCE", "Claim 3 should be NOT_ESTABLISHED"
+    assert "verifier_mode" in data.get('engine_metadata', {}), "Engine metadata should declare verifier_mode"
 
     print("SUCCESS: All smoke test assertions passed! Pipeline is functioning 100%.")
 
