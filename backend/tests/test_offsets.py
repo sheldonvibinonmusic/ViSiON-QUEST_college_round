@@ -6,7 +6,7 @@ Invariants verified:
 """
 import pytest
 from backend.app.services.claim_segmenter import segment_claims
-from backend.app.util.offsets import verify_span_match, validate_span
+from backend.app.util.offsets import verify_span_match, validate_span, calculate_char_coverage
 from backend.app.errors import SecondOpinionException, ErrorCode
 
 def test_basic_sentence_splitting_and_offsets():
@@ -65,3 +65,10 @@ def test_max_claims_cap():
     assert len(claims) == 5
     for claim in claims:
         assert answer[claim.start_char:claim.end_char] == claim.text
+
+def test_calculate_char_coverage():
+    assert calculate_char_coverage(100, [(0, 50), (60, 80)]) == 0.7
+    assert calculate_char_coverage(0, [(0, 10)]) == 0.0
+    assert calculate_char_coverage(50, []) == 0.0
+    assert calculate_char_coverage(50, [(0, 50)]) == 1.0
+
