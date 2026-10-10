@@ -1,5 +1,7 @@
 {
   "description": "Hand-labelled reference evaluation example for Second Opinion",
+  "source_file": "example_source.txt",
+  "target_file": "example_answer.txt",
   "expected_findings": [
     {
       "claim": "Acme Corp provides employees with a $500 home office equipment reimbursement.",
