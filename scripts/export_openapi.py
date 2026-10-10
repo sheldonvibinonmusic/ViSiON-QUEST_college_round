@@ -16,8 +16,11 @@ def export_openapi():
     out_file = contracts_dir / "openapi.json"
 
     openapi_data = app.openapi()
-    out_file.write_text(json.dumps(openapi_data, indent=2), encoding="utf-8")
-    print(f"OpenAPI schema successfully exported to: {out_file}")
+    content = json.dumps(openapi_data, indent=2)
+    out_file.write_text(content, encoding="utf-8")
+    num_paths = len(openapi_data.get("paths", {}))
+    file_size_kb = len(content.encode("utf-8")) / 1024
+    print(f"OpenAPI schema ({num_paths} paths, {file_size_kb:.1f} KB) successfully exported to: {out_file}")
 
 if __name__ == "__main__":
     export_openapi()
