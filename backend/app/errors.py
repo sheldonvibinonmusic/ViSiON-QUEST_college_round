@@ -5,6 +5,7 @@ from enum import Enum
 from fastapi import HTTPException, status
 
 class ErrorCode(str, Enum):
+    """Machine-readable error codes returned in API error response envelopes."""
     ANSWER_EMPTY = "ANSWER_EMPTY"
     FILE_TOO_LARGE = "FILE_TOO_LARGE"
     CONTENT_TOO_LARGE = "CONTENT_TOO_LARGE"
@@ -15,14 +16,20 @@ class ErrorCode(str, Enum):
     AUDIT_FAILED = "AUDIT_FAILED"
 
 class WarningCode(str, Enum):
+    """Non-fatal warning codes recorded in audit warning telemetry."""
     MODEL_FALLBACK_RULES_ONLY = "MODEL_FALLBACK_RULES_ONLY"
     DOCUMENT_TRUNCATED = "DOCUMENT_TRUNCATED"
     PAGE_METADATA_UNAVAILABLE = "PAGE_METADATA_UNAVAILABLE"
     UNVERIFIED_PARAPHRASE = "UNVERIFIED_PARAPHRASE"
 
 class SecondOpinionException(HTTPException):
+    """
+    Standard domain exception producing a structured JSON error response:
+    {"detail": {"code": "<ErrorCode>", "message": "<human_message>"}}
+    """
     def __init__(self, error_code: ErrorCode, message: str, status_code: int = status.HTTP_400_BAD_REQUEST):
         super().__init__(
             status_code=status_code,
             detail={"code": error_code.value, "message": message}
         )
+
