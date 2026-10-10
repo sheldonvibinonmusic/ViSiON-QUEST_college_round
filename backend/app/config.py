@@ -46,6 +46,7 @@ class Settings:
 
     # URL Ingestion Settings (Default OFF)
     URL_INGESTION_ENABLED: bool = os.getenv("URL_INGESTION_ENABLED", "false").lower() in ("true", "1", "yes")
+    MAX_URLS: int = int(os.getenv("MAX_URLS", "5"))
     URL_MAX_BYTES: int = int(os.getenv("URL_MAX_BYTES", str(2 * 1024 * 1024)))
     URL_TIMEOUT_SECONDS: float = float(os.getenv("URL_TIMEOUT_SECONDS", "5.0"))
 
