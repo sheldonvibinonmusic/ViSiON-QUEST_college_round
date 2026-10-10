@@ -34,3 +34,13 @@ def verify_span_match(text: str, start_char: int, end_char: int, expected_substr
     if not validate_span(text, start_char, end_char):
         return False
     return text[start_char:end_char] == expected_substring
+
+def calculate_char_coverage(total_chars: int, spans: list[Tuple[int, int]]) -> float:
+    """
+    Compute the fractional coverage of text covered by non-overlapping spans [0.0, 1.0].
+    """
+    if total_chars <= 0 or not spans:
+        return 0.0
+    covered_chars = sum(max(0, min(total_chars, end) - max(0, start)) for start, end in spans)
+    return min(1.0, covered_chars / total_chars)
+
