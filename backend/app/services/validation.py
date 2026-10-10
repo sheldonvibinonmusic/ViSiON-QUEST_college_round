@@ -54,10 +54,10 @@ def validate_urls_metadata(urls: Optional[str]) -> List[str]:
         return []
     url_list = [u.strip() for u in re.split(r"[\n,]+", urls) if u.strip()]
     unique_urls = list(dict.fromkeys(url_list))
-    if len(unique_urls) > settings.MAX_FILES:
+    if len(unique_urls) > settings.MAX_URLS:
         raise SecondOpinionException(
             ErrorCode.INVALID_INPUT,
-            f"Provided {len(unique_urls)} URLs, which exceeds the limit of {settings.MAX_FILES} URLs per audit."
+            f"Provided {len(unique_urls)} URLs, which exceeds the limit of {settings.MAX_URLS} URLs per audit."
         )
     return unique_urls
 
