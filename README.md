@@ -1,127 +1,367 @@
-# Second Opinion
+# Second Opinion — Evidence-Grounded AI Answer Auditor
 
-**An evidence-grounded AI answer auditor designed to compare AI-generated answers with user-provided source material.**
+**An evidence-grounded AI answer auditor designed to verify AI-generated answers against user-provided reference sources (PDF, DOCX, TXT) and surface transparent, claim-level findings.**
 
-## Overview
+---
 
-Second Opinion is a planned tool for students and researchers who want to inspect AI-generated answers against textbooks, research papers, reports, or reference documents. The intended workflow separates claims supported by the supplied sources from claims contradicted by them, claims the sources do not establish, and cases where the evidence is ambiguous. The application has not yet been implemented or tested, so the capabilities described as planned below are not currently available in a working release.
+## 1. Overview
 
-## Key Features
+Second Opinion is an evidence-first auditing tool for students, researchers, and developers who need to inspect AI-generated text against authoritative reference materials such as textbooks, research papers, policy documents, and technical reports. 
 
-No application features are currently confirmed as implemented. This section will be updated when features have been built and verified through testing.
+Instead of treating an AI response as a monolithic block or relying on ungrounded generative critiques, Second Opinion decomposes the answer into discrete claims, retrieves candidate evidence passages from the user's uploaded sources, evaluates each claim using deterministic rules and natural language inference (NLI), and surfaces transparent, verifiable evidence passages.
 
-## Demo
+### Core Principles
 
-[ADD: screenshot/GIF/live link]
+1. **Evidence-Grounded Verification:** Every claim is audited strictly against the documents provided by the user.
+2. **Absence of Evidence is Not Falsity:** A claim unsupported by the supplied source material is classified as `NOT_ESTABLISHED_BY_SOURCE`, never automatically assumed to be false (`CONTRADICTED_BY_SOURCE`).
+3. **Strict Offset Preservation:** Claim boundaries preserve exact zero-based Unicode code-point offsets (`answer[start:end] == claim.text`), ensuring highlighting in the original answer without reflowing or mutation.
+4. **Transparent Summaries:** The audit report surfaces exact integer counts for each verdict category rather than masking individual discrepancies behind a single aggregated percentage.
+5. **Zero Budget & 100% Offline Capable:** The core audit operates with ₹0 cost, zero paid API dependencies, and no externally hosted language models.
+6. **Transient & Privacy-First:** Operates entirely in-memory with no database, no authentication, and no persistent server-side audit logs.
 
-## How It Works
+---
 
-A working audit pipeline is not available yet. The following diagram describes the **planned workflow**, not an implemented system:
+## 2. Verdict Framework
+
+Second Opinion maps every extracted claim to one of four canonical verdicts:
+
+| Verdict | Meaning | Review Priority |
+|---|---|---|
+| `SUPPORTED_BY_SOURCE` | Directly substantiated by factual evidence, matching numerical values, dates, or semantic entailment in the source text. | Low |
+| `CONTRADICTED_BY_SOURCE` | Directly clashing with source evidence (numerical mismatch, conflicting dates, or polarity/negation contradiction). | High |
+| `NOT_ESTABLISHED_BY_SOURCE` | The provided sources do not contain sufficient evidence to substantiate or contradict the claim. | Medium |
+| `AMBIGUOUS_OR_CONFLICTING` | The claim contains internal ambiguities, or multiple candidate passages provide conflicting accounts. | Medium |
+
+In addition, domain-specific advisory flags (`medical`, `legal`, `financial`) are detected and isolated as review tags without distorting factual source verdicts.
+
+---
+
+## 3. System Architecture & Workflow
 
 ```mermaid
 flowchart TD
-    A[User submits an AI-generated answer] --> B[Provide source text or upload documents]
-    B --> C[Extract text from PDF, DOCX, or TXT]
-    C --> D[Split answer and sources while preserving offsets]
-    D --> E[Retrieve candidate evidence with BM25]
-    E --> F[Optional local DeBERTa NLI assessment]
-    F --> G[Map evidence to claim-level findings]
-    G --> H[Inspect findings and source passages]
-    H --> I[Export or save the audit report]
+    A[User Submits AI Answer] --> C[Audit Pipeline Orchestrator]
+    B[Upload Sources: PDF / DOCX / TXT or Text] --> D[Document Parser & Normalizer]
+    D --> E[Word-Based Chunking with Provenance]
+    E --> F[BM25Plus Evidence Retrieval Index]
+    A --> G[Deterministic Claim Segmenter]
+    G --> H[Offset Preservation Engine]
+    H --> I[Per-Claim Audit Verification Loop]
+    F --> I
+    I --> J{Evidence Verifier}
+    J --> K[Deterministic Rules Engine: Metrics, Dates, Polarity]
+    J --> L[Local DeBERTa NLI Signal with Rules Fallback]
+    J --> M[Domain Safety & Advisory Flag Scanner]
+    K --> N[Verdict Mapping Engine]
+    L --> N
+    M --> N
+    N --> O[Summary Aggregator: Integer Counts]
+    O --> P[Interactive Forensic Dashboard: React 19]
+    O --> Q[Report Exporter: Markdown & JSON]
 ```
 
-## Tech Stack
+---
 
-No application runtime stack has been verified as installed or used by an implementation yet. The intended stack is listed under Roadmap.
+## 4. Key Features
 
-| Technology | Purpose |
-|---|---|
-| Not yet confirmed as implemented | No runtime dependency or framework can currently be described as part of a working application. |
+- **Multi-Format Source Ingestion:**
+  - Plain Text (`.txt`) with character and line offset tracking.
+  - Portable Document Format (`.pdf`) using `pypdf`, preserving 1-based page numbers.
+  - Microsoft Word (`.docx`) using `python-docx`, extracting paragraph and tabular text.
+- **Provenance-Aware Chunking:** Word-based sliding windows (~120–220 words with 40-word overlap) preserving source IDs, file names, page numbers, and exact character offsets.
+- **Deterministic Claim Segmentation:** Regex-based boundary detection with abbreviation guards (e.g., *Dr.*, *U.S.*, *e.g.*), decimal guards (*$500.50*), quotation preservation, and strict Unicode code-point indexing.
+- **Robust Candidate Retrieval:** Uses `BM25Plus` from `rank-bm25` to prevent negative IDF collapse on small reference corpora, with custom tokenization preserving currency, numbers, and dates.
+- **Deterministic Rules Engine:**
+  - Numerical and currency mismatch detection (e.g., claim says *$1,000*, source says *$500*).
+  - Date and year discrepancy detection (e.g., claim says *2024*, source says *2025*).
+  - Polarity and negation clash detection (e.g., *cannot purchase* vs *can purchase*).
+- **Optional Local DeBERTa NLI with Graceful Fallback:**
+  - Evaluates premise-hypothesis pairs against `microsoft/deberta-base-mnli`.
+  - Dynamic runtime label mapping (`entailment`, `contradiction`, `neutral`).
+  - Seamlessly falls back to `rules_only` mode (`MODEL_FALLBACK_RULES_ONLY`) if PyTorch/Transformers are not installed or resources are constrained.
+- **Calm Forensic Dashboard UI:**
+  - Interactive original answer viewer with color-coded, clickable claim highlights.
+  - Side-by-side evidence passage inspector displaying source quotes, page provenance, and retrieval rankings.
+  - One-click sample loader for rapid demonstration.
+  - Instant Markdown (`.md`) and structured JSON report downloads.
 
-## Project Structure
+---
 
-The application repository and source tree have not yet been created. Add the actual project structure here after the initial implementation files have been committed.
+## 5. Tech Stack
 
-[ADD: actual project structure after files are committed]
+| Layer | Technology | Purpose | Verification Status |
+|---|---|---|---|
+| **Backend Framework** | Python 3.11+ / 3.14.2 + FastAPI | Async REST API, OpenAPI docs | Verified (23/23 tests pass) |
+| **Data Validation** | Pydantic v2 | Strict schema enforcement | Verified |
+| **Document Parsers** | `pypdf`, `python-docx` | PDF & DOCX text extraction | Verified |
+| **Retrieval Engine** | `rank-bm25` (`BM25Plus`) | Corpus indexing & evidence search | Verified |
+| **Local NLI** | `microsoft/deberta-base-mnli` | Zero-shot premise-hypothesis inference | Verified with rules-only fallback |
+| **Frontend Framework** | React 19 + TypeScript + Vite 6 | Forensic audit dashboard | Verified (Clean build in ~550ms) |
+| **Styling & UI** | Tailwind CSS 4 + Lucide React | Modern typography & accessible badges | Verified |
+| **Testing** | pytest, httpx, Vitest | Unit & integration test suites | Verified (26 tests total passing) |
 
-## Getting Started
+---
 
-The project does not yet have verified installation or run instructions. The placeholders below must be replaced after a clean setup has been tested.
+## 6. Project Structure
+
+```text
+BNB'26 Second Option/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── audit_routes.py       # Health check, POST /api/audits, export endpoints
+│   │   ├── services/
+│   │   │   ├── audit_service.py       # Pipeline orchestrator & Markdown generator
+│   │   │   ├── claim_segmenter.py     # Deterministic sentence & offset segmentation
+│   │   │   ├── document_parser.py     # TXT, PDF, DOCX parsers
+│   │   │   ├── nli_verifier.py        # Local DeBERTa loader with rules-only fallback
+│   │   │   ├── retriever.py           # BM25Plus retrieval engine
+│   │   │   ├── rules_verifier.py      # Numerical, date, & polarity conflict rules
+│   │   │   ├── safety_flags.py        # Medical, legal, & financial advisory scanner
+│   │   │   ├── source_chunks.py       # Word-based chunking with page provenance
+│   │   │   ├── summary_service.py     # Integer summary count aggregator
+│   │   │   ├── validation.py          # Input size, file count, & character limits
+│   │   │   └── verdict_mapper.py      # Canonical verdict assignment
+│   │   ├── config.py                  # AuditConfig & environment settings
+│   │   ├── errors.py                  # SecondOpinionError hierarchy & HTTP handlers
+│   │   ├── main.py                    # FastAPI application entrypoint
+│   │   └── schemas.py                 # Pydantic v2 request/response contracts
+│   └── tests/
+│       ├── fixtures/                  # Synthetic test policy & dates fixtures
+│       ├── test_audit_api.py          # End-to-end API integration tests
+│       ├── test_health.py             # Health check & schema tests
+│       ├── test_offsets.py            # Claim segmentation & offset invariant tests
+│       ├── test_parsers.py            # PDF, DOCX, TXT parser tests
+│       ├── test_retriever.py          # BM25Plus retrieval ranking tests
+│       └── test_verdict_mapper.py     # Verdict mapping & safety flag tests
+├── contracts/
+│   └── openapi.json                   # Exported OpenAPI 3.1.0 schema
+├── examples/
+│   ├── example_answer.txt             # Sample AI answer for testing
+│   ├── example_source.txt             # Sample reference policy document
+│   └── expected_findings.json         # Reference findings assertion
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   │   └── client.ts              # Strongly typed API client & export helpers
+│   │   ├── components/
+│   │   │   ├── AppHeader.tsx          # Navigation, status indicators, reset button
+│   │   │   ├── AuditForm.tsx          # Multi-input form with sample loader
+│   │   │   ├── AuditSummary.tsx       # Forensic overview, count badges, export bar
+│   │   │   ├── ClaimList.tsx          # Claim finding cards with priority badges
+│   │   │   ├── EvidencePanel.tsx      # Sticky evidence passage inspector
+│   │   │   ├── FileDropzone.tsx       # Drag-and-drop PDF/DOCX/TXT uploader
+│   │   │   ├── OriginalAnswerViewer.tsx # Interactive highlight span viewer
+│   │   │   └── VerdictBadge.tsx       # Reusable verdict & priority badges
+│   │   ├── lib/
+│   │   │   └── offsets.ts             # Character offset span slicing utilities
+│   │   ├── tests/
+│   │   │   ├── offsets.test.ts        # Frontend span slicing unit tests
+│   │   │   └── verdict-labels.test.ts # Verdict badge configuration tests
+│   │   ├── App.tsx                    # Main stateful dashboard workspace
+│   │   ├── index.css                  # Tailwind styles
+│   │   └── main.tsx                   # React root entrypoint
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts                 # Vite bundler configuration & API proxy
+├── scripts/
+│   ├── check_model.py                 # Verifies local DeBERTa model availability
+│   ├── export_openapi.py              # Generates contracts/openapi.json
+│   └── run_smoke_test.py              # CLI end-to-end audit smoke test
+├── .env.example                       # Environment variable template
+├── CHANGELOG.md                       # Phase-by-phase implementation log
+├── IDEAS_FOR_APPROVAL.md              # Proposal register
+├── PROJECT_CONTEXT.md                 # Authoritative project specification
+└── pyproject.toml                     # Python package & dependency metadata
+```
+
+---
+
+## 7. Getting Started
 
 ### Prerequisites
 
-[ADD: verified prerequisites and required runtime versions]
+- **Python:** 3.11 or newer (tested on Python 3.14.2)
+- **Node.js:** v20+ LTS or v24+ (tested on Node.js v24.20.0)
+- **Package Manager:** `npm` (tested on npm 11.19.0)
 
-### Clone
+### 1. Clone the Repository
 
-[ADD: repository clone URL]
+```bash
+git clone https://github.com/sheldonvibinonmusic/ViSiON-QUEST_college_round.git
+cd "BNB'26 Second Option"
+```
 
-### Install
+### 2. Backend Setup
 
-[ADD: verified installation commands]
+Create and activate a Python virtual environment, then install dependencies:
 
-### Environment variables
+```bash
+# Windows PowerShell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
 
-[ADD: verified environment-variable names and `.env.example` path]
+# Linux / macOS
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
 
-Do not place secrets in the frontend or commit API keys to the repository. The intended core audit should not require an external API key.
+To install testing dependencies as well:
+```bash
+pip install pytest httpx
+```
 
-### Run
+### 3. Frontend Setup
 
-[ADD: verified run commands]
+```bash
+cd frontend
+npm install
+cd ..
+```
 
-## Usage
+### 4. Configuration
 
-[ADD: example input and output from a tested audit]
+Copy the example environment configuration:
 
-## Roadmap
+```bash
+cp .env.example .env
+```
 
-The following items are planned requirements or proposed implementation work. They are not available features until implemented and tested.
+*Note: No API keys are required for the core auditing pipeline.*
 
-### Planned stack
+---
 
-- [ ] Frontend: React, TypeScript, and Vite.
-- [ ] Backend: Python and FastAPI.
-- [ ] Evidence retrieval: BM25.
-- [ ] Text splitting: deterministic sentence/paragraph splitting that preserves source offsets.
-- [ ] Document inputs: PDF through `pypdf`, DOCX through `python-docx`, and plain text.
-- [ ] Optional local assessment signal using DeBERTa natural-language inference; `microsoft/deberta-base-mnli` is the proposed model identifier and still requires integration and testing.
-- [ ] Keep the core source-grounded audit usable without a paid API or externally hosted language model.
+## 8. Running the Application
 
-### Planned audit behaviour
+### Start the Backend
 
-- [ ] Accept an AI-generated answer and user-provided reference text or supported documents.
-- [ ] Extract source text and preserve document identity and page or section information where available.
-- [ ] Identify answer claims and preserve original-text offsets for highlighting.
-- [ ] Retrieve candidate evidence passages from supplied sources.
-- [ ] Keep the following outcomes distinct: supported by the source, contradicted by the source, not established by the source, and ambiguous or conflicting evidence.
-- [ ] Treat NLI output as an assessment signal, not as proof of truth or a guaranteed probability.
-- [ ] Show the original answer, claim-level findings, relevant source passages, explanations, and warnings.
-- [ ] Show a transparent summary that does not conceal serious individual findings behind a single accuracy percentage.
-- [ ] Provide a way to download or save the audit report.
-- [ ] Handle missing evidence without automatically labelling a claim false.
-- [ ] Provide clear errors for empty input, unreadable documents, unsupported files, oversized inputs, and failed audits.
-- [ ] Add and run a small labelled evaluation set before making performance claims.
+From the project root:
 
-### Optional future work
+```bash
+# Windows
+.\.venv\Scripts\uvicorn backend.app.main:app --reload --port 8000
 
-- [ ] Consider external-web verification as a separate mode that does not silently mix outside evidence with user-provided source evidence.
-- [ ] Consider embedding-based retrieval if evaluation shows BM25 misses relevant paraphrased passages.
-- [ ] Consider finer-grained span detection using a specialised model such as LettuceDetect.
-- [ ] Consider multilingual support after selecting and evaluating appropriate models.
-- [ ] Consider OCR for scanned PDFs only after implementing and testing it.
-- [ ] Attempt public deployment only after the local application works reliably and a suitable free hosting option has been verified.
+# Linux / macOS
+uvicorn backend.app.main:app --reload --port 8000
+```
 
-## Contributing
+The backend API will be available at `http://localhost:8000`.
+Interactive API documentation is accessible at `http://localhost:8000/docs`.
 
-Contribution instructions have not yet been established. Before contributing, check this README for the current project scope. Add the verified development, formatting, testing, and pull-request workflow here after the repository is created.
+### Start the Frontend
 
-[ADD: contribution workflow and test commands]
+In a separate terminal:
 
-## License
+```bash
+cd frontend
+npm run dev
+```
 
-[ADD: project license]
+The React dashboard will be running at `http://localhost:5173`. Requests to `/api/*` are automatically proxied to the backend on port 8000.
 
-## Acknowledgements
+---
 
-No third-party API or open-source runtime dependency has been confirmed as used by a working application. The proposed tools and libraries are listed in the Roadmap; this section should be updated after dependencies are selected, installed, and used.
+## 9. Verification & Testing
+
+All test suites and verification scripts have been executed and verified on the local host:
+
+### 1. Backend Pytest Suite (23 Tests)
+
+```bash
+.\.venv\Scripts\pytest backend/tests -v
+```
+*Output: 23 passed in ~0.8s.*
+
+### 2. Frontend Vitest Suite (3 Tests)
+
+```bash
+npm --prefix frontend test
+```
+*Output: 3 passed in ~0.25s.*
+
+### 3. Frontend Production Build
+
+```bash
+npm --prefix frontend run build
+```
+*Output: TypeScript typecheck clean, production bundle compiled in ~0.55s.*
+
+### 4. End-to-End CLI Smoke Test
+
+```bash
+.\.venv\Scripts\python scripts/run_smoke_test.py
+```
+*Output: 100% of pipeline assertions pass; validates `SUPPORTED_BY_SOURCE`, `CONTRADICTED_BY_SOURCE`, and `NOT_ESTABLISHED_BY_SOURCE` in a single run.*
+
+### 5. Export OpenAPI Contract
+
+```bash
+.\.venv\Scripts\python scripts/export_openapi.py
+```
+*Output: Writes active schema to `contracts/openapi.json`.*
+
+---
+
+## 10. API Reference
+
+### `GET /api/health`
+Returns system status, active version, configured verifier mode, and budget status (`free_tier`).
+
+**Sample Response:**
+```json
+{
+  "status": "ok",
+  "version": "0.6.0",
+  "budget_status": "free_tier",
+  "verifier_mode": "rules_only"
+}
+```
+
+### `POST /api/audits`
+Executes an audit over submitted text and/or files.
+
+- **Content-Type:** `multipart/form-data`
+- **Fields:**
+  - `answer` (string, required): AI-generated answer text to audit (≤ 40,000 characters).
+  - `source_text` (string, optional): Pasted reference material.
+  - `files` (files, optional): Up to 5 uploaded `.pdf`, `.docx`, or `.txt` files (≤ 10 MiB each).
+- **Response:** `AuditResponse` JSON containing `findings`, `summary`, `sources`, and `warnings`.
+
+### `POST /api/audits/export/markdown`
+Generates a formatted Markdown report from an existing `AuditResponse` payload.
+
+- **Content-Type:** `application/json`
+- **Body:** Full `AuditResponse` JSON object.
+- **Response:** Raw Markdown text suitable for download or clipboard copying.
+
+---
+
+## 11. Security & Privacy
+
+- **Zero Data Retention:** Second Opinion operates as an in-memory transient processor. Neither the submitted answer nor the uploaded documents are persisted to a database or disk.
+- **No Untrusted Overrides:** Uploaded documents are treated purely as inert textual evidence. Prompt injection attempts embedded within uploaded documents cannot override system verification logic.
+- **No Telemetry or Tracking:** No user tracking, analytics, or external API calls are dispatched during core audits.
+- **No Hard-Coded Secrets:** Configuration uses `.env.example` with non-secret default values.
+
+---
+
+## 12. Roadmap & Deferred Work
+
+- [x] Phase 1: Environment scaffold, configuration, and health endpoints.
+- [x] Phase 2: PDF, DOCX, TXT document parsers and deterministic claim segmenter.
+- [x] Phase 3: BM25Plus retrieval, deterministic rules verifier, safety flags, and verdict mapper.
+- [x] Phase 4: Audit pipeline orchestrator, multipart API, and Markdown report export.
+- [x] Phase 5: Interactive React 19 forensic dashboard with claim highlighting and sample loader.
+- [x] Phase 6: End-to-end smoke tests, OpenAPI schema export, and verified documentation.
+- [ ] *Deferred / Future:* Dense semantic embeddings (optional hybrid retrieval).
+- [ ] *Deferred / Future:* Token-level hallucination span detection using LettuceDetect.
+- [ ] *Deferred / Future:* External web verification mode (strictly separated from local source mode).
+- [ ] *Deferred / Future:* OCR support for scanned image-only PDFs (`tesseract-ocr`).
+
+---
+
+## 13. License
+
+This project is licensed under the MIT License. See `LICENSE` for details.

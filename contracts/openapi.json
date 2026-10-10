@@ -1,0 +1,655 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Second Opinion API",
+    "description": "Evidence-Grounded AI Answer Auditor API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Health",
+        "description": "Returns system readiness, active verifier mode, model status, and limits.",
+        "operationId": "get_health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audits": {
+      "post": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Create Audit",
+        "description": "Run a source-grounded audit synchronously against provided source text and/or files.",
+        "operationId": "create_audit_api_audits_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_audit_api_audits_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audits/export/markdown": {
+      "post": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Export Audit Markdown",
+        "description": "Export the audit report as a downloadable Markdown document.",
+        "operationId": "export_audit_markdown_api_audits_export_markdown_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditResponse": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "title": "Audit Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "completed"
+          },
+          "source_mode": {
+            "type": "string",
+            "title": "Source Mode",
+            "default": "provided_sources"
+          },
+          "original_answer": {
+            "type": "string",
+            "title": "Original Answer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AuditSummary"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "engine_metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Engine Metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "original_answer",
+          "summary",
+          "created_at"
+        ],
+        "title": "AuditResponse"
+      },
+      "AuditSummary": {
+        "properties": {
+          "assessment": {
+            "type": "string",
+            "title": "Assessment"
+          },
+          "review_recommendation": {
+            "type": "string",
+            "title": "Review Recommendation"
+          },
+          "total_claims": {
+            "type": "integer",
+            "title": "Total Claims",
+            "default": 0
+          },
+          "supported_claims": {
+            "type": "integer",
+            "title": "Supported Claims",
+            "default": 0
+          },
+          "contradicted_claims": {
+            "type": "integer",
+            "title": "Contradicted Claims",
+            "default": 0
+          },
+          "not_established_claims": {
+            "type": "integer",
+            "title": "Not Established Claims",
+            "default": 0
+          },
+          "ambiguous_claims": {
+            "type": "integer",
+            "title": "Ambiguous Claims",
+            "default": 0
+          },
+          "logic_concerns_count": {
+            "type": "integer",
+            "title": "Logic Concerns Count",
+            "default": 0
+          },
+          "safety_concerns_count": {
+            "type": "integer",
+            "title": "Safety Concerns Count",
+            "default": 0
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "assessment",
+          "review_recommendation"
+        ],
+        "title": "AuditSummary"
+      },
+      "Body_create_audit_api_audits_post": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "source_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Text"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "contentMediaType": "application/octet-stream"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "title": "Body_create_audit_api_audits_post"
+      },
+      "ClaimFinding": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "claim_text": {
+            "type": "string",
+            "title": "Claim Text"
+          },
+          "start_char": {
+            "type": "integer",
+            "title": "Start Char"
+          },
+          "end_char": {
+            "type": "integer",
+            "title": "End Char"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/FactualVerdict"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceReference"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "logic_concerns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Logic Concerns"
+          },
+          "safety_concerns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Safety Concerns"
+          },
+          "review_priority": {
+            "type": "string",
+            "title": "Review Priority",
+            "default": "low"
+          },
+          "evidence_strength": {
+            "type": "number",
+            "title": "Evidence Strength",
+            "default": 0.0
+          },
+          "model_details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Details"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "claim_text",
+          "start_char",
+          "end_char",
+          "verdict",
+          "explanation"
+        ],
+        "title": "ClaimFinding"
+      },
+      "EvidenceReference": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "source_name": {
+            "type": "string",
+            "title": "Source Name"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Number"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "start_char": {
+            "type": "integer",
+            "title": "Start Char"
+          },
+          "end_char": {
+            "type": "integer",
+            "title": "End Char"
+          },
+          "relation": {
+            "type": "string",
+            "title": "Relation"
+          },
+          "retrieval_rank": {
+            "type": "integer",
+            "title": "Retrieval Rank"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "source_id",
+          "source_name",
+          "quote",
+          "start_char",
+          "end_char",
+          "relation",
+          "retrieval_rank"
+        ],
+        "title": "EvidenceReference"
+      },
+      "FactualVerdict": {
+        "type": "string",
+        "enum": [
+          "SUPPORTED_BY_SOURCE",
+          "CONTRADICTED_BY_SOURCE",
+          "NOT_ESTABLISHED_BY_SOURCE",
+          "AMBIGUOUS_OR_CONFLICTING"
+        ],
+        "title": "FactualVerdict"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "0.1.0"
+          },
+          "verifier_mode": {
+            "$ref": "#/components/schemas/VerifierMode",
+            "default": "rules_only"
+          },
+          "model_loaded": {
+            "type": "boolean",
+            "title": "Model Loaded",
+            "default": false
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "supported_file_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported File Types"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/SystemLimits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "supported_file_types",
+          "limits"
+        ],
+        "title": "HealthResponse"
+      },
+      "SourceDocument": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "character_count": {
+            "type": "integer",
+            "title": "Character Count"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "extraction_status": {
+            "type": "string",
+            "title": "Extraction Status",
+            "default": "success"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "filename",
+          "media_type",
+          "sha256",
+          "character_count"
+        ],
+        "title": "SourceDocument"
+      },
+      "SystemLimits": {
+        "properties": {
+          "max_answer_chars": {
+            "type": "integer",
+            "title": "Max Answer Chars"
+          },
+          "max_source_chars": {
+            "type": "integer",
+            "title": "Max Source Chars"
+          },
+          "max_files": {
+            "type": "integer",
+            "title": "Max Files"
+          },
+          "max_file_bytes": {
+            "type": "integer",
+            "title": "Max File Bytes"
+          },
+          "max_claims": {
+            "type": "integer",
+            "title": "Max Claims"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_answer_chars",
+          "max_source_chars",
+          "max_files",
+          "max_file_bytes",
+          "max_claims"
+        ],
+        "title": "SystemLimits"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerifierMode": {
+        "type": "string",
+        "enum": [
+          "rules_and_model",
+          "rules_only"
+        ],
+        "title": "VerifierMode"
+      }
+    }
+  }
+}

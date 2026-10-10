@@ -2,48 +2,78 @@
 
 All completed project changes are documented in this file. Uncompleted or planned changes are never recorded as done.
 
-## [Unreleased] - Phase 2 Document Ingestion & Deterministic Segmentation
+## [0.6.0] - Phase 6 Documentation, Smoke Testing & Project Polish
 
 ### Added
-- Document parsing engine (`backend/app/services/document_parser.py`):
-  - Canonical plain text extraction for TXT inputs.
-  - Page-by-page digital text extraction from PDF via `pypdf` with 1-based page numbers.
-  - Flowing text and table extraction from DOCX via `python-docx`.
-  - SHA-256 document hashing and metadata tracking (`SourceDocument`).
-  - Strict validation raising `SOURCE_EMPTY_OR_UNREADABLE` for empty or whitespace-only inputs.
-- Paragraph-aware source chunking (`backend/app/services/source_chunks.py`):
-  - Token-level slicing producing ~120-220 word chunks with ~40 word overlap.
-  - Exact character offsets (`[start_char:end_char]`) into the extracted document text.
-  - Page provenance mapping associating each chunk with its 1-based document page number.
-- Deterministic claim segmentation (`backend/app/services/claim_segmenter.py`):
-  - Punctuation-based sentence splitting with abbreviation protection (e.g. `Dr.`, `Prof.`, `e.g.`, `vs.`).
-  - Decimal number protection (e.g. `4.5%`, `3.14`).
-  - Closing quote boundary handling (`."`, `!"`, `?"`).
-  - Zero-based, end-exclusive Unicode code-point offsets into the unmodified answer string.
-  - Verified invariant: `answer[claim.start_char:claim.end_char] == claim.text` for 100% of claims.
-- Offset and hashing utilities (`backend/app/util/offsets.py`, `backend/app/util/hashes.py`).
-- Synthetic fixtures (`sample_policy.txt`, `sample_dates.txt`, `sample_mixed_answer.json`).
-- Automated test suites:
-  - `backend/tests/test_parsers.py`: TXT, PDF, DOCX, and chunking offset validation.
-  - `backend/tests/test_offsets.py`: Sentence splitting, abbreviation guards, and offset match validation.
-  - All 13 backend tests passing (100% pass rate).
+- End-to-End CLI Smoke Test (`scripts/run_smoke_test.py`):
+  - Validates full pipeline with multi-sentence input against synthetic policy text.
+  - Verifies presence of `SUPPORTED_BY_SOURCE`, `CONTRADICTED_BY_SOURCE`, and `NOT_ESTABLISHED_BY_SOURCE`.
+  - Confirms rules-only fallback and zero external API requirement.
+- OpenAPI Schema Exporter (`scripts/export_openapi.py`):
+  - Exports active FastAPI OpenAPI 3.1.0 schema to `contracts/openapi.json`.
+- Model Checker Script (`scripts/check_model.py`):
+  - Inspects local DeBERTa NLI model status and reports active verifier mode.
+- Test Fixtures and Reference Examples (`examples/`):
+  - `example_source.txt`: Reference remote work and equipment policy.
+  - `example_answer.txt`: Representative AI answer with supported, contradicted, and unestablished claims.
+  - `expected_findings.json`: Expected verdicts and rationale.
+- Comprehensive Project Documentation (`README.md`):
+  - Authoritative overview, tech stack, directory structure, setup commands, test evidence, and API specification.
+
+## [0.5.0] - Phase 5 Frontend Forensic Dashboard & Audit Workspace
+
+### Added
+- Frontend Application Client (`frontend/src/api/client.ts`):
+  - Strongly typed client for `/api/health`, `POST /api/audits`, and Markdown export.
+  - Client-side JSON download helper (`downloadJsonReport`).
+  - Client-side Markdown download helper (`downloadMarkdownReport`).
+- Interactive Audit UI Components:
+  - `AppHeader.tsx`: Responsive top navigation, ₹0 status badge, verifier mode indicator, and "New Audit" reset trigger.
+  - `AuditForm.tsx`: Multi-input interface with character counter, "Paste Text" vs "Upload Files" tab switcher, and "Load Sample Policy Audit" 1-click test button.
+  - `FileDropzone.tsx`: Drag-and-drop file upload component supporting PDF, DOCX, and TXT with file-count and size enforcement.
+  - `AuditSummary.tsx`: Forensic executive summary card, transparent count badges for the 4 verdicts, safety warning callout, and one-click export actions (Copy Markdown, Download .md, Download JSON).
+  - `OriginalAnswerViewer.tsx`: Renders the unmodified answer text with interactive span highlights matching claim findings; clicking any span selects the claim.
+  - `ClaimList.tsx`: Claim cards displaying index, verdict badge, review priority, claim text quote, explanation, and advisory tags.
+  - `EvidencePanel.tsx`: Sticky inspector displaying candidate source passages, exact quotes, page numbers, rank, character offsets, and relation indicators.
+  - `VerdictBadge.tsx`: Reusable accessible badges with color coding and icons for the 4 verdicts and review priority levels.
+- Span Segmentation Utility (`frontend/src/lib/offsets.ts`):
+  - Splits unmodified answer string into text segments and highlighted claim spans without mutating character offsets.
+- Frontend Unit Test Suite (`frontend/src/tests/`):
+  - `offsets.test.ts`: Slicing and highlight segment preservation tests.
+  - `verdict-labels.test.ts`: Verification of all 4 required verdict configurations.
+  - Vitest test runner configured and passing (3/3 tests passed in 228ms).
+- Production Build Verification:
+  - Clean TypeScript check (`tsc -b`) and Vite production bundle generated in 597ms.
+  - 100% backend test suite passing (23/23 tests in 1.48s).
+
+## [0.4.0] - Phase 4 Audit Orchestration, API & Report Export
+
+### Added
+- Input Validation Service (`backend/app/services/validation.py`).
+- Audit Pipeline Orchestrator (`backend/app/services/audit_service.py`).
+- API Endpoints (`POST /api/audits`, `POST /api/audits/export/markdown`).
+- Integration tests (`backend/tests/test_audit_api.py`).
+
+## [0.3.0] - Phase 3 Retrieval, Rules Verifier & Verdict Mapping
+
+### Added
+- BM25 Evidence Retrieval Engine (`backend/app/services/retriever.py`) using `BM25Plus`.
+- Deterministic Rules Engine (`backend/app/services/rules_verifier.py`).
+- Safety Flags Service (`backend/app/services/safety_flags.py`).
+- Lazy NLI Loader (`backend/app/services/nli_verifier.py`).
+- Verdict Mapping Engine (`backend/app/services/verdict_mapper.py`).
+- Summary Aggregation Service (`backend/app/services/summary_service.py`).
+
+## [0.2.0] - Phase 2 Document Ingestion & Deterministic Segmentation
+
+### Added
+- Document parsing engine (`backend/app/services/document_parser.py`): TXT, PDF (`pypdf`), DOCX (`python-docx`).
+- Source chunking (`backend/app/services/source_chunks.py`) and claim segmentation (`backend/app/services/claim_segmenter.py`).
+- Test fixtures (`sample_policy.txt`, `sample_dates.txt`, `sample_mixed_answer.json`).
 
 ## [0.1.0] - Phase 1 Foundation
 
 ### Added
 - Root configuration files: `.gitignore`, `.env.example`, `.python-version`, `pyproject.toml`, `IDEAS_FOR_APPROVAL.md`.
-- Python backend packages installed in `.venv`: `fastapi`, `uvicorn`, `pydantic`, `pytest`, `httpx`, `rank-bm25`, `pypdf`, `python-docx`, `numpy`.
-- Backend application structure:
-  - `backend/app/config.py`: Environment configuration and safety limits.
-  - `backend/app/errors.py`: Standardized error and warning codes.
-  - `backend/app/schemas.py`: Pydantic v2 data models for health check and audit pipeline contracts.
-  - `backend/app/api/audit_routes.py`: Health check route `GET /api/health`.
-  - `backend/app/main.py`: FastAPI application entry point with CORS.
-  - `backend/tests/test_health.py`: Health endpoint integration tests (100% pass).
-- Frontend toolchain and application:
-  - Node.js LTS v24.20.0 and npm 11.19.0 installed and verified.
-  - React 19 + TypeScript + Vite 6 scaffolded in `frontend/`.
-  - Tailwind CSS + Lucide icons installed and configured.
-  - Vite proxy configured for `/api` to local FastAPI backend.
-  - `frontend/src/App.tsx`: Initial responsive forensic dashboard layout and live health-check consumer.
-  - Frontend production build verified with `npm run build`.
+- Backend skeleton and health check `GET /api/health`.
+- Node.js LTS v24.20.0 + React 19 + TypeScript + Vite 6 scaffold.
