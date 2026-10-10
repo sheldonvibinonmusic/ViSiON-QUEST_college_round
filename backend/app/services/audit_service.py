@@ -3,6 +3,7 @@ Audit pipeline orchestrator service.
 Coordinates document ingestion, chunking, claim segmentation, retrieval, and verdict mapping.
 Strictly transient and in-memory; no server-side persistence.
 """
+import time
 from datetime import datetime, timezone
 import os
 import re
@@ -22,6 +23,7 @@ from backend.app.schemas import (
 from backend.app.services.validation import (
     validate_answer,
     validate_files_metadata,
+    validate_urls_metadata,
     validate_source_presence,
     validate_extracted_source_length,
 )
@@ -53,6 +55,7 @@ async def process_audit(
     check_source_fit_flag: Optional[bool] = None,
     min_source_fit_score: Optional[float] = None,
     enable_web_search_flag: Optional[bool] = None,
+    max_audit_seconds: Optional[float] = None,
 ) -> AuditResponse:
     """
     Run an end-to-end source-grounded audit synchronously.
@@ -67,6 +70,7 @@ async def process_audit(
     # 1. Validation
     validate_answer(answer)
     validate_files_metadata(files)
+    unique_urls = validate_urls_metadata(urls)
     validate_source_presence(source_text, files, urls=urls, allow_web_search=should_enable_web_search)
 
     source_documents: List[SourceDocument] = []
@@ -76,6 +80,7 @@ async def process_audit(
     total_extracted_chars = 0
     warnings: List[str] = []
     source_name_map: Dict[str, str] = {}
+    chunk_provenance_map: Dict[str, Dict[str, Any]] = {}
 
     # 2. Ingest pasted source text if supplied
     if source_text and source_text.strip():
@@ -132,9 +137,12 @@ async def process_audit(
             all_chunks.extend(chunks)
 
     # 3.5 Ingest web URLs if supplied
-    if urls and urls.strip():
-        url_list = [u.strip() for u in re.split(r"[\n,]+", urls) if u.strip()]
-        for u in url_list:
+    if unique_urls:
+        if urls and urls.strip():
+            raw_url_count = len([u.strip() for u in re.split(r"[\n,]+", urls) if u.strip()])
+            if raw_url_count > len(unique_urls):
+                warnings.append("Duplicate URLs in submission were automatically deduplicated.")
+        for u in unique_urls:
             doc, u_chunks = await fetch_and_parse_url(u)
             if doc.sha256 in seen_hashes:
                 warnings.append(f"Skipped duplicate content from URL '{u}'.")
@@ -146,6 +154,11 @@ async def process_audit(
             all_chunks.extend(u_chunks)
             for chk in u_chunks:
                 url_chunks_map[chk.chunk_id] = u
+                chunk_provenance_map[chk.chunk_id] = {
+                    "origin_type": "user_url",
+                    "source_url": u,
+                    "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                }
 
     # 4. Check total extracted length limit
     validate_extracted_source_length(total_extracted_chars)
@@ -262,6 +275,7 @@ async def process_audit(
         source_mode = "provided_sources"
 
     findings: List[ClaimFinding] = []
+    is_incomplete = False
 
     # If all sources are off-topic AND no web search was executed/succeeded, prevent false contradictions
     if source_fit_result and source_fit_result.all_sources_off_topic and not has_web_sources:
@@ -289,7 +303,16 @@ async def process_audit(
         retriever = BM25Retriever(all_chunks)
         nli_verifier = NLIVerifier.get_instance() if settings.MODEL_ENABLED else None
 
+        start_time = time.monotonic()
+        is_incomplete = False
         for claim in claims:
+            if max_audit_seconds and (time.monotonic() - start_time) > max_audit_seconds:
+                warnings.append(
+                    f"Audit execution reached time limit ({max_audit_seconds}s) after evaluating {len(findings)} of {len(claims)} claims. Returning partial results."
+                )
+                is_incomplete = True
+                break
+
             candidates = retriever.retrieve_candidates(
                 query=claim.text,
                 source_name_map=source_name_map,
@@ -320,7 +343,7 @@ async def process_audit(
 
     return AuditResponse(
         audit_id=audit_id,
-        status="completed",
+        status="incomplete" if is_incomplete else "completed",
         source_mode=source_mode,
         original_answer=answer,
         sources=source_documents,

@@ -2,6 +2,37 @@
 
 All completed project changes are documented in this file. Uncompleted or planned changes are never recorded as done.
 
+## [0.7.0] - UI Implementation, Hostile Hardening, Pipeline Stress Testing & Error Fixing
+
+### Added
+- Phase 1 UI Capabilities (`UI_HANDOFF_NEEDS.md` implementation):
+  - Added "Web URLs" 3rd tab in `AuditForm.tsx` with validation, chip list, and duplicate prevention.
+  - Added free Web Search Fallback toggle in `AuditForm.tsx`.
+  - Added Source Fit badge and prominent Domain Mismatch amber banner in `AuditSummary.tsx`.
+  - Added Incomplete Audit status badge and advisory banner in `AuditSummary.tsx`.
+  - Added Evidence Origin badges (`User File`, `Web URL`, `Wikipedia`, `arXiv`, `Crossref`, `Web Search`), external links, and Citation Verified chips in `EvidencePanel.tsx`.
+  - Added Independent Sources Agreeing corroboration counter chip in `ClaimList.tsx`.
+  - Added Web Evidence search queries budget usage strip in `AuditSummary.tsx`.
+- Phase 2 Hostile Server Attack Test Suite (`backend/tests/test_hostile_server.py`):
+  - In-process Starlette ASGI hostile server testing SSRF defense: credentialed URLs, non-HTTP schemes, IPv6 and IPv4-mapped loopbacks, cloud instance metadata IP (`169.254.169.254`), redirect loops, binary media types, chunk-by-chunk stream byte caps (>2MB), gzip bombs, polite `robots.txt` enforcement, mixed encodings, hidden text tag discarding, and prompt injection evidence isolation.
+- Phase 2 Real Public URLs Test Suite (`backend/tests/test_real_urls.py`):
+  - 13 live web categories marked with `@pytest.mark.integration`: Encyclopedia, arXiv abstract, PDF rejection, news article, React SPA/JS-heavy, Python documentation, French Wikipedia, HTTP 404, login page, image URL rejection, URL shortener redirect, W3C specification, and tracking parameters.
+- Phase 2 Pipeline Stress Test Suite (`backend/tests/test_pipeline_stress.py`):
+  - 15 pipeline stress cases: physics answer with maths source, maths answer with physics source, relevant source, partly relevant source, contradicting source, no source (web mode), mixed mode, two sources with one off-topic, single provider failure fallback, all providers failing graceful warning, malformed/empty URL list, URL cap rejection (>5 URLs), duplicate URL deduplication, concurrent requests (`asyncio.gather`), and partway audit timeout with `status="incomplete"`.
+- Error Log Ledger (`ERROR_LOG.md`):
+  - Tracks 9 vulnerabilities and bug fixes (ERR-001 through ERR-009) with root causes, fixes, and regression test proofs.
+
+### Fixed
+- Fixed embedded credential leak vulnerability in URL parser (`ERR-001`).
+- Fixed hidden CSS/attribute text extraction vulnerability in `HTMLContentExtractor` (`ERR-002`).
+- Fixed unbounded memory consumption and gzip bomb susceptibility with early streaming caps (`ERR-003`).
+- Fixed scraper politeness by verifying `robots.txt` disallow policies (`ERR-004`).
+- Fixed unvalidated URL submission count by enforcing 5-URL cap in `validation.py` (`ERR-005`).
+- Fixed audit timeouts to return graceful `status="incomplete"` with partial findings (`ERR-006`).
+- Fixed `UnboundLocalError` on `is_incomplete` during domain mismatch audits (`ERR-007`).
+- Fixed `MagicMock` type check and async close compatibility in test runners (`ERR-008`).
+- Fixed provider chain crashes on external provider network failures with isolated try/except blocks (`ERR-009`).
+
 ## [0.6.0] - Phase 6 Documentation, Smoke Testing & Project Polish
 
 ### Added

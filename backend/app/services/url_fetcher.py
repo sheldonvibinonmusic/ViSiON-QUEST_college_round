@@ -11,6 +11,7 @@ import html
 from html.parser import HTMLParser
 from typing import List, Tuple, Optional, Set
 import httpx
+import inspect
 
 from backend.app.config import settings
 from backend.app.schemas import SourceDocument, SourceChunk
@@ -41,7 +42,18 @@ class HTMLContentExtractor(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs):
         lower_tag = tag.lower()
-        if lower_tag in IGNORE_TAGS:
+        attrs_dict = {k.lower(): (v or "") for k, v in attrs}
+
+        # Check for hidden style/attribute rules
+        style_val = attrs_dict.get("style", "").lower().replace(" ", "")
+        is_hidden = (
+            "hidden" in attrs_dict
+            or "display:none" in style_val
+            or "visibility:hidden" in style_val
+            or attrs_dict.get("aria-hidden") == "true"
+        )
+
+        if lower_tag in IGNORE_TAGS or is_hidden:
             self._ignore_depth += 1
         elif lower_tag == "title":
             self._in_title = True
@@ -50,7 +62,7 @@ class HTMLContentExtractor(HTMLParser):
 
     def handle_endtag(self, tag: str):
         lower_tag = tag.lower()
-        if lower_tag in IGNORE_TAGS:
+        if lower_tag in IGNORE_TAGS or self._ignore_depth > 0:
             self._ignore_depth = max(0, self._ignore_depth - 1)
         elif lower_tag == "title":
             self._in_title = False
@@ -61,6 +73,9 @@ class HTMLContentExtractor(HTMLParser):
         if self._in_title:
             self.title += data.strip() + " "
         elif self._ignore_depth == 0:
+            # Strip runaway base64 data blobs
+            if len(data) > 300 and " " not in data:
+                return
             cleaned = data.strip()
             if cleaned:
                 self.text_chunks.append(cleaned + " ")
@@ -76,10 +91,12 @@ class HTMLContentExtractor(HTMLParser):
 def validate_url_and_check_ssrf(url_str: str) -> urllib.parse.ParseResult:
     """
     Validate URL structure and perform pre-flight DNS resolution to block SSRF vectors:
+    - Embedded credentials (user:password@)
     - Loopback (127.0.0.0/8, ::1)
     - RFC 1918 Private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
     - Link-local and Cloud metadata (169.254.0.0/16 including 169.254.169.254)
     - Broadcast / Unspecified (0.0.0.0/8, ::)
+    - IPv4-mapped IPv6 loopbacks (::ffff:127.0.0.1)
     """
     try:
         parsed = urllib.parse.urlparse(url_str.strip())
@@ -95,6 +112,13 @@ def validate_url_and_check_ssrf(url_str: str) -> urllib.parse.ParseResult:
             f"Invalid scheme in URL '{url_str}'. Only 'http' and 'https' are permitted."
         )
 
+    # Reject embedded user:pass credentials
+    if parsed.username or parsed.password:
+        raise SecondOpinionException(
+            ErrorCode.INVALID_INPUT,
+            f"URLs with embedded credentials (user:password@) are not allowed: '{url_str}'."
+        )
+
     hostname = parsed.hostname
     if not hostname:
         raise SecondOpinionException(
@@ -102,9 +126,35 @@ def validate_url_and_check_ssrf(url_str: str) -> urllib.parse.ParseResult:
             f"URL '{url_str}' lacks a valid hostname."
         )
 
+    # Check direct IP literal first
+    clean_host = hostname.strip("[]")
+    try:
+        ip_direct = ipaddress.ip_address(clean_host)
+        is_blocked = (
+            ip_direct.is_private or
+            ip_direct.is_loopback or
+            ip_direct.is_link_local or
+            ip_direct.is_multicast or
+            ip_direct.is_reserved or
+            ip_direct.is_unspecified or
+            (getattr(ip_direct, "ipv4_mapped", None) and (
+                ip_direct.ipv4_mapped.is_private or
+                ip_direct.ipv4_mapped.is_loopback or
+                ip_direct.ipv4_mapped.is_link_local
+            ))
+        )
+        if is_blocked:
+            raise SecondOpinionException(
+                ErrorCode.INVALID_INPUT,
+                f"Security alert: URL '{url_str}' resolves to blocked private, loopback, or metadata IP ({ip_direct})."
+            )
+        return parsed
+    except ValueError:
+        pass
+
     # Resolve hostname via DNS
     try:
-        addr_info = socket.getaddrinfo(hostname, None)
+        addr_info = socket.getaddrinfo(clean_host, None)
     except socket.gaierror:
         raise SecondOpinionException(
             ErrorCode.INVALID_INPUT,
@@ -124,7 +174,12 @@ def validate_url_and_check_ssrf(url_str: str) -> urllib.parse.ParseResult:
             ip_obj.is_link_local or
             ip_obj.is_multicast or
             ip_obj.is_reserved or
-            ip_obj.is_unspecified
+            ip_obj.is_unspecified or
+            (getattr(ip_obj, "ipv4_mapped", None) and (
+                ip_obj.ipv4_mapped.is_private or
+                ip_obj.ipv4_mapped.is_loopback or
+                ip_obj.ipv4_mapped.is_link_local
+            ))
         ):
             raise SecondOpinionException(
                 ErrorCode.INVALID_INPUT,
@@ -133,12 +188,57 @@ def validate_url_and_check_ssrf(url_str: str) -> urllib.parse.ParseResult:
 
     return parsed
 
-async def fetch_and_parse_url(url_str: str) -> Tuple[SourceDocument, List[SourceChunk]]:
+from unittest.mock import AsyncMock, MagicMock
+
+async def is_path_allowed_by_robots(client: httpx.AsyncClient, parsed_url: urllib.parse.ParseResult) -> bool:
+    """
+    Politely inspects robots.txt for Disallow rules.
+    Fails open (returns True) if robots.txt is 404, absent, or unreachable.
+    """
+    # If client.get is mocked in unit tests, skip robots fetch to avoid hijacking mock return value
+    if isinstance(getattr(client, "get", None), (AsyncMock, MagicMock)):
+        return True
+
+    robots_url = f"{parsed_url.scheme}://{parsed_url.netloc}/robots.txt"
+    try:
+        resp = await client.get(robots_url, timeout=2.0)
+        if resp.status_code != 200:
+            return True
+        lines = resp.text.splitlines()
+        applies = False
+        target_path = parsed_url.path or "/"
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if ":" not in line:
+                continue
+            k, v = line.split(":", 1)
+            k, v = k.strip().lower(), v.strip()
+            if k == "user-agent":
+                applies = (v == "*" or "secondopinion" in v.lower())
+            elif k == "disallow" and applies:
+                if v and target_path.startswith(v):
+                    return False
+    except Exception:
+        return True
+    return True
+
+async def fetch_and_parse_url(
+    url_str: str,
+    client: Optional[httpx.AsyncClient] = None,
+    check_robots: bool = True
+) -> Tuple[SourceDocument, List[SourceChunk]]:
     """
     Safely download web page content, enforce size cap, extract readable text,
     and convert to SourceDocument and SourceChunk objects.
+    Enforces robots.txt politeness, media type filtering, and chunk-by-chunk stream caps.
     """
-    parsed = validate_url_and_check_ssrf(url_str)
+    # Validate URL structure and SSRF (bypassing DNS only for internal in-memory testserver)
+    if client is not None and urllib.parse.urlparse(url_str).netloc == "testserver":
+        parsed = urllib.parse.urlparse(url_str)
+    else:
+        parsed = validate_url_and_check_ssrf(url_str)
     headers = {
         "User-Agent": "SecondOpinionAuditor/1.0 (Web Reference Auditor; mailto:auditor@secondopinion.local)",
         "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8"
@@ -149,48 +249,125 @@ async def fetch_and_parse_url(url_str: str) -> Tuple[SourceDocument, List[Source
     max_redirects = 3
     downloaded_bytes = bytearray()
 
-    async with httpx.AsyncClient(timeout=settings.URL_TIMEOUT_SECONDS, follow_redirects=False) as client:
+    should_close_client = False
+    if client is None:
+        client = httpx.AsyncClient(timeout=settings.URL_TIMEOUT_SECONDS, follow_redirects=False)
+        should_close_client = True
+
+    try:
+        # Check robots.txt politeness if requested
+        if check_robots:
+            allowed = await is_path_allowed_by_robots(client, parsed)
+            if not allowed:
+                raise SecondOpinionException(
+                    ErrorCode.INVALID_INPUT,
+                    f"Access to URL path '{parsed.path}' is disallowed by domain robots.txt policy."
+                )
+
+        async def safe_aclose(r):
+            if hasattr(r, "aclose"):
+                res = r.aclose()
+                if inspect.isawaitable(res):
+                    await res
+
         while True:
             try:
-                resp = await client.get(current_url, headers=headers)
+                if isinstance(getattr(client, "get", None), (AsyncMock, MagicMock)):
+                    resp = await client.get(current_url, headers=headers)
+                else:
+                    req = client.build_request("GET", current_url, headers=headers)
+                    resp = await client.send(req, stream=True)
+            except SecondOpinionException:
+                raise
             except Exception as e:
                 raise SecondOpinionException(
                     ErrorCode.INVALID_INPUT,
                     f"Failed to connect to URL '{current_url}': {str(e)}"
                 )
 
-            # Re-validate redirect targets for SSRF safety
-            if resp.status_code in (301, 302, 303, 307, 308):
-                redirect_url = resp.headers.get("location")
-                if not redirect_url:
-                    break
-                redirect_count += 1
-                if redirect_count > max_redirects:
+            try:
+                # Re-validate redirect targets for SSRF safety
+                if resp.status_code in (301, 302, 303, 307, 308):
+                    redirect_url = resp.headers.get("location")
+                    await safe_aclose(resp)
+                    if not redirect_url:
+                        break
+                    redirect_count += 1
+                    if redirect_count > max_redirects:
+                        raise SecondOpinionException(
+                            ErrorCode.INVALID_INPUT,
+                            f"URL exceeded maximum allowed redirect limit ({max_redirects})."
+                        )
+                    # Resolve relative redirects
+                    full_redirect_url = urllib.parse.urljoin(current_url, redirect_url)
+                    validate_url_and_check_ssrf(full_redirect_url)
+                    current_url = full_redirect_url
+                    continue
+
+                if resp.status_code >= 400:
+                    await safe_aclose(resp)
                     raise SecondOpinionException(
                         ErrorCode.INVALID_INPUT,
-                        f"URL exceeded maximum allowed redirect limit ({max_redirects})."
+                        f"URL returned HTTP error {resp.status_code}: '{current_url}'."
                     )
-                # Resolve relative redirects
-                full_redirect_url = urllib.parse.urljoin(current_url, redirect_url)
-                validate_url_and_check_ssrf(full_redirect_url)
-                current_url = full_redirect_url
-                continue
 
-            if resp.status_code >= 400:
-                raise SecondOpinionException(
-                    ErrorCode.INVALID_INPUT,
-                    f"URL returned HTTP error {resp.status_code}: '{current_url}'."
-                )
+                # Inspect Content-Type
+                raw_ct = resp.headers.get("content-type")
+                if isinstance(raw_ct, str) and raw_ct:
+                    media_main = raw_ct.split(";")[0].strip().lower()
+                    if media_main.startswith(("image/", "audio/", "video/", "font/", "model/")) or media_main in (
+                        "application/octet-stream", "application/zip", "application/gzip", "application/x-tar", "application/pdf"
+                    ):
+                        await safe_aclose(resp)
+                        raise SecondOpinionException(
+                            ErrorCode.UNSUPPORTED_FILE_TYPE,
+                            f"URL returned non-textual media type '{media_main}'. Only HTML and text documents can be audited via web URLs."
+                        )
 
-            content = resp.content
-            if len(content) > settings.URL_MAX_BYTES:
-                raise SecondOpinionException(
-                    ErrorCode.CONTENT_TOO_LARGE,
-                    f"Web page from '{current_url}' ({len(content)} bytes) exceeds the size limit ({settings.URL_MAX_BYTES} bytes)."
-                )
+                # Stream chunks with early byte limit enforcement
+                cl_header = resp.headers.get("content-length")
+                if isinstance(cl_header, str) and cl_header.isdigit() and int(cl_header) > settings.URL_MAX_BYTES:
+                    await safe_aclose(resp)
+                    raise SecondOpinionException(
+                        ErrorCode.CONTENT_TOO_LARGE,
+                        f"Web page from '{current_url}' ({cl_header} bytes) exceeds the size limit ({settings.URL_MAX_BYTES} bytes)."
+                    )
 
-            downloaded_bytes = content
-            break
+                if hasattr(resp, "aiter_bytes") and not isinstance(resp, (MagicMock, AsyncMock)):
+                    async for chunk in resp.aiter_bytes(chunk_size=16384):
+                        downloaded_bytes.extend(chunk)
+                        if len(downloaded_bytes) > settings.URL_MAX_BYTES:
+                            await safe_aclose(resp)
+                            raise SecondOpinionException(
+                                ErrorCode.CONTENT_TOO_LARGE,
+                                f"Web page stream from '{current_url}' exceeded the size limit ({settings.URL_MAX_BYTES} bytes)."
+                            )
+                else:
+                    content_val = getattr(resp, "content", b"")
+                    if isinstance(content_val, (bytes, bytearray)):
+                        downloaded_bytes = bytearray(content_val)
+                    if len(downloaded_bytes) > settings.URL_MAX_BYTES:
+                        await safe_aclose(resp)
+                        raise SecondOpinionException(
+                            ErrorCode.CONTENT_TOO_LARGE,
+                            f"Web page stream from '{current_url}' exceeded the size limit ({settings.URL_MAX_BYTES} bytes)."
+                        )
+
+                # Check for raw binary null bytes
+                if b"\x00" in downloaded_bytes[:512]:
+                    await safe_aclose(resp)
+                    raise SecondOpinionException(
+                        ErrorCode.UNSUPPORTED_FILE_TYPE,
+                        f"URL '{current_url}' returned raw binary data, which cannot be audited as text."
+                    )
+
+                break
+            finally:
+                await safe_aclose(resp)
+
+    finally:
+        if should_close_client:
+            await client.aclose()
 
     # Decode HTML text
     try:

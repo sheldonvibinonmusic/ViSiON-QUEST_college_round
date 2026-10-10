@@ -54,7 +54,11 @@ export function AuditSummary({ audit }: AuditSummaryProps) {
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl font-medium tracking-tight text-white">{summary.assessment}</h2>
-            {isSevere ? (
+            {audit.status === 'incomplete' ? (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wider uppercase bg-amber-950/60 text-amber-300 border border-amber-500/40">
+                INCOMPLETE AUDIT
+              </span>
+            ) : isSevere ? (
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wider uppercase bg-rose-950/60 text-rose-300 border border-rose-500/40">
                 ACTION REQUIRED
               </span>
@@ -134,6 +138,21 @@ export function AuditSummary({ audit }: AuditSummaryProps) {
           </button>
         </div>
       </div>
+
+      {/* Incomplete Audit Banner (UI_HANDOFF_NEEDS #6) */}
+      {audit.status === 'incomplete' && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <div className="font-semibold text-amber-300 tracking-wide uppercase font-mono text-[11px]">
+              Incomplete Audit Evaluation
+            </div>
+            <div className="text-amber-200/90 leading-relaxed">
+              The audit execution timed out or was interrupted before completing all claims. Partial claim findings evaluated prior to termination are displayed below.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transparent Claim Counts Grid (§3.2, §9.8) - No purple */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -29,3 +29,6 @@ minversion = "8.0"
 testpaths = ["backend/tests"]
 pythonpath = ["."]
 python_files = ["test_*.py"]
+markers = [
+    "integration: marks tests requiring live network connectivity",
+]

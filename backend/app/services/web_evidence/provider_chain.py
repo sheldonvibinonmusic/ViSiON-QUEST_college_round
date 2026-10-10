@@ -64,16 +64,25 @@ class WebEvidenceChain:
 
         # Route 1: Scholarly queries check arXiv or Crossref
         if self._is_scholarly(safe_query):
-            scholarly_results = await self.arxiv.search(safe_query, max_results=2)
+            try:
+                scholarly_results = await self.arxiv.search(safe_query, max_results=2)
+            except Exception:
+                scholarly_results = []
             if not scholarly_results:
-                scholarly_results = await self.crossref.search(safe_query, max_results=2)
+                try:
+                    scholarly_results = await self.crossref.search(safe_query, max_results=2)
+                except Exception:
+                    scholarly_results = []
             for res in scholarly_results:
                 if res.url not in seen_urls:
                     seen_urls.add(res.url)
                     all_results.append(res)
 
         # Route 2: Wikipedia (Keyless, fast, high authority)
-        wiki_results = await self.wikipedia.search(safe_query, max_results=max_results)
+        try:
+            wiki_results = await self.wikipedia.search(safe_query, max_results=max_results)
+        except Exception:
+            wiki_results = []
         for res in wiki_results:
             if res.url not in seen_urls:
                 seen_urls.add(res.url)
@@ -82,14 +91,20 @@ class WebEvidenceChain:
         # Route 3: Optional providers (Tavily / Serper) if configured and results are few
         if len(all_results) < max_results:
             if self.tavily.is_available():
-                tav_results = await self.tavily.search(safe_query, max_results=max_results - len(all_results))
+                try:
+                    tav_results = await self.tavily.search(safe_query, max_results=max_results - len(all_results))
+                except Exception:
+                    tav_results = []
                 for res in tav_results:
                     if res.url not in seen_urls:
                         seen_urls.add(res.url)
                         all_results.append(res)
 
             elif self.serper.is_available():
-                serp_results = await self.serper.search(safe_query, max_results=max_results - len(all_results))
+                try:
+                    serp_results = await self.serper.search(safe_query, max_results=max_results - len(all_results))
+                except Exception:
+                    serp_results = []
                 for res in serp_results:
                     if res.url not in seen_urls:
                         seen_urls.add(res.url)

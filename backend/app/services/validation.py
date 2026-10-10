@@ -44,6 +44,20 @@ def validate_files_metadata(files: Optional[List[UploadFile]]) -> None:
                 f"File '{f.filename}' has unsupported extension '{ext}'. Supported extensions: {', '.join(settings.SUPPORTED_FILE_EXTENSIONS)}."
             )
 
+def validate_urls_metadata(urls: Optional[str]) -> List[str]:
+    """Validate URL counts, deduplicate, and return unique URLs."""
+    if not urls or not urls.strip():
+        return []
+    import re
+    url_list = [u.strip() for u in re.split(r"[\n,]+", urls) if u.strip()]
+    unique_urls = list(dict.fromkeys(url_list))
+    if len(unique_urls) > settings.MAX_FILES:
+        raise SecondOpinionException(
+            ErrorCode.INVALID_INPUT,
+            f"Provided {len(unique_urls)} URLs, which exceeds the limit of {settings.MAX_FILES} URLs per audit."
+        )
+    return unique_urls
+
 def validate_source_presence(
     source_text: Optional[str],
     files: Optional[List[UploadFile]],
