@@ -3,6 +3,7 @@ Input validation service for audit requests.
 Validates character counts, file counts, sizes, extensions, and presence of required inputs.
 """
 import os
+import re
 from typing import List, Optional
 from fastapi import UploadFile
 
@@ -45,10 +46,12 @@ def validate_files_metadata(files: Optional[List[UploadFile]]) -> None:
             )
 
 def validate_urls_metadata(urls: Optional[str]) -> List[str]:
-    """Validate URL counts, deduplicate, and return unique URLs."""
+    """
+    Validate web URL input, deduplicate while preserving submission order,
+    and enforce maximum URL count limit.
+    """
     if not urls or not urls.strip():
         return []
-    import re
     url_list = [u.strip() for u in re.split(r"[\n,]+", urls) if u.strip()]
     unique_urls = list(dict.fromkeys(url_list))
     if len(unique_urls) > settings.MAX_FILES:
