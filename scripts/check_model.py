@@ -17,6 +17,8 @@ def check_model():
     print(f"Model ID: {settings.MODEL_ID}")
     print(f"Device: {settings.DEVICE}")
     print(f"Model Enabled: {settings.MODEL_ENABLED}")
+    print(f"URL Ingestion Enabled: {settings.URL_INGESTION_ENABLED}")
+    print(f"Web Evidence Fallback Enabled: {settings.WEB_EVIDENCE_ENABLED}")
 
     verifier = NLIVerifier.get_instance()
     loaded = verifier.load_model()
