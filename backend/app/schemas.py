@@ -61,6 +61,10 @@ class Claim(BaseModel):
     flags: List[str] = Field(default_factory=list)
 
 class EvidenceReference(BaseModel):
+    """
+    Substantive evidence quote retrieved from a source document or web origin.
+    Preserves exact character offsets and origin provenance.
+    """
     evidence_id: str
     source_id: str
     source_name: str
@@ -71,12 +75,18 @@ class EvidenceReference(BaseModel):
     end_char: int
     relation: str
     retrieval_rank: int
-    origin_type: str = "user_document"
-    source_url: Optional[str] = None
-    retrieved_at: Optional[str] = None
-    citation_verified: Optional[bool] = None
+    origin_type: str = Field(
+        default="user_document",
+        description="Origin provenance: 'user_document', 'user_url', 'wikipedia', 'scholarly_arxiv', 'scholarly_crossref', or 'web_search'"
+    )
+    source_url: Optional[str] = Field(default=None, description="External origin URL if source was retrieved online")
+    retrieved_at: Optional[str] = Field(default=None, description="UTC timestamp of retrieval")
+    citation_verified: Optional[bool] = Field(default=None, description="Whether citation covers substantive claim content")
 
 class ClaimFinding(BaseModel):
+    """
+    Forensic evaluation finding for an individual decomposed claim.
+    """
     claim_id: str
     claim_text: str
     start_char: int
@@ -86,11 +96,11 @@ class ClaimFinding(BaseModel):
     evidence: List[EvidenceReference] = Field(default_factory=list)
     logic_concerns: List[str] = Field(default_factory=list)
     safety_concerns: List[str] = Field(default_factory=list)
-    review_priority: str = "low"  # low, medium, high
+    review_priority: str = Field(default="low", description="Triage priority: 'low', 'medium', or 'high'")
     evidence_strength: float = 0.0
     model_details: Optional[Dict[str, Any]] = None
     warnings: List[str] = Field(default_factory=list)
-    independent_sources_agreeing: int = 1
+    independent_sources_agreeing: int = Field(default=1, description="Number of distinct sources corroborating the finding")
 
 class AuditSummary(BaseModel):
     assessment: str
