@@ -1,0 +1,17 @@
+{
+  "answer": "Acme Corp provides employees with a $500 home office equipment reimbursement. Employees can purchase their own laptops and request reimbursement. In addition, workers receive a $100 monthly internet stipend.",
+  "expected_evaluations": [
+    {
+      "claim_text": "Acme Corp provides employees with a $500 home office equipment reimbursement.",
+      "expected_verdict": "SUPPORTED_BY_SOURCE"
+    },
+    {
+      "claim_text": "Employees can purchase their own laptops and request reimbursement.",
+      "expected_verdict": "CONTRADICTED_BY_SOURCE"
+    },
+    {
+      "claim_text": "In addition, workers receive a $100 monthly internet stipend.",
+      "expected_verdict": "NOT_ESTABLISHED_BY_SOURCE"
+    }
+  ]
+}
