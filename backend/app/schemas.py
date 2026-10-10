@@ -71,6 +71,10 @@ class EvidenceReference(BaseModel):
     end_char: int
     relation: str
     retrieval_rank: int
+    origin_type: str = "user_document"
+    source_url: Optional[str] = None
+    retrieved_at: Optional[str] = None
+    citation_verified: Optional[bool] = None
 
 class ClaimFinding(BaseModel):
     claim_id: str
@@ -86,6 +90,7 @@ class ClaimFinding(BaseModel):
     evidence_strength: float = 0.0
     model_details: Optional[Dict[str, Any]] = None
     warnings: List[str] = Field(default_factory=list)
+    independent_sources_agreeing: int = 1
 
 class AuditSummary(BaseModel):
     assessment: str
@@ -99,6 +104,27 @@ class AuditSummary(BaseModel):
     safety_concerns_count: int = 0
     summary_text: str = ""
 
+class SourceFitLevel(str, Enum):
+    RELEVANT = "RELEVANT"
+    PARTIALLY_RELEVANT = "PARTIALLY_RELEVANT"
+    OFF_TOPIC = "OFF_TOPIC"
+
+class SourceFitDocument(BaseModel):
+    source_id: str
+    filename: str
+    fit_level: SourceFitLevel
+    fit_score: float
+    matched_terms: List[str] = Field(default_factory=list)
+    missing_topics: List[str] = Field(default_factory=list)
+    reason: str
+
+class SourceFitSummary(BaseModel):
+    overall_fit: SourceFitLevel
+    average_fit_score: float
+    all_sources_off_topic: bool
+    documents: List[SourceFitDocument] = Field(default_factory=list)
+    explanation: str
+
 class AuditResponse(BaseModel):
     audit_id: str
     status: str = "completed"
@@ -110,3 +136,5 @@ class AuditResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     engine_metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: str
+    source_fit: Optional[SourceFitSummary] = None
+

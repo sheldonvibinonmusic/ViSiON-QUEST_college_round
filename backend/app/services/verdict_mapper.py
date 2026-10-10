@@ -18,6 +18,7 @@ from backend.app.schemas import (
 from backend.app.services.rules_verifier import evaluate_rules, RuleCheckResult
 from backend.app.services.safety_flags import check_safety_concerns
 from backend.app.services.nli_verifier import NLIVerifier
+from backend.app.services.citation_checker import verify_citation_support
 from backend.app.errors import WarningCode
 
 def map_verdict_for_claim(
@@ -50,6 +51,11 @@ def map_verdict_for_claim(
             model_details=None,
             warnings=[]
         )
+
+    # Run Citation Support Check on all candidates
+    for cand in candidate_evidence:
+        is_verified, reason = verify_citation_support(claim.text, cand.quote)
+        cand.citation_verified = is_verified
 
     # Evaluate candidates with rules and optional NLI
     top_candidate = candidate_evidence[0]
@@ -96,8 +102,8 @@ def map_verdict_for_claim(
         review_priority = "high"
         evidence_strength = nli_scores["contradiction"]
 
-    # Priority C: Support via rules or high NLI entailment
-    elif rule_eval.is_supported or (nli_scores and nli_scores.get("entailment", 0.0) >= 0.65):
+    # Priority C: Support via rules or high NLI entailment, confirmed by citation check
+    elif (rule_eval.is_supported or (nli_scores and nli_scores.get("entailment", 0.0) >= 0.65)) and top_candidate.citation_verified:
         verdict = FactualVerdict.SUPPORTED_BY_SOURCE
         reasons_text = " ".join(rule_eval.reasons) if rule_eval.reasons else "Direct alignment with source passage."
         explanation = f"Source evidence supports claim: {reasons_text}"
@@ -105,9 +111,12 @@ def map_verdict_for_claim(
         evidence_strength = nli_scores.get("entailment", 0.85) if nli_scores else 0.85
 
     else:
-        # Default fallback: Insufficient evidence to substantiate or disprove
+        # Default fallback: Insufficient evidence or unverified citation
         verdict = FactualVerdict.NOT_ESTABLISHED_BY_SOURCE
-        explanation = "Candidate source passages mention related topics but do not sufficiently establish or contradict the claim."
+        if (rule_eval.is_supported or (nli_scores and nli_scores.get("entailment", 0.0) >= 0.65)) and not top_candidate.citation_verified:
+            explanation = "Candidate source passage mentions related terms but does not substantively verify asserted numbers, dates, or named entities."
+        else:
+            explanation = "Candidate source passages mention related topics but do not sufficiently establish or contradict the claim."
         review_priority = "medium"
         evidence_strength = 0.3
 
@@ -118,6 +127,15 @@ def map_verdict_for_claim(
         top_candidate.relation = "contradicts"
     else:
         top_candidate.relation = "insufficient"
+
+    # Compute independent corroborating sources
+    if verdict == FactualVerdict.SUPPORTED_BY_SOURCE:
+        agreeing_sources = {c.source_id for c in candidate_evidence if c.citation_verified}
+        independent_sources_count = max(1, len(agreeing_sources))
+    elif verdict == FactualVerdict.CONTRADICTED_BY_SOURCE:
+        independent_sources_count = max(1, len({c.source_id for c in candidate_evidence}))
+    else:
+        independent_sources_count = 0
 
     return ClaimFinding(
         claim_id=claim.claim_id,
@@ -132,5 +150,6 @@ def map_verdict_for_claim(
         review_priority=review_priority,
         evidence_strength=evidence_strength,
         model_details=model_details,
-        warnings=warnings
+        warnings=warnings,
+        independent_sources_agreeing=independent_sources_count
     )

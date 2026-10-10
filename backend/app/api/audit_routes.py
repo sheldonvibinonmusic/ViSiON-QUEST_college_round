@@ -36,15 +36,23 @@ def get_health() -> HealthResponse:
 async def create_audit(
     answer: str = Form(...),
     source_text: Optional[str] = Form(None),
-    files: Optional[List[UploadFile]] = File(None)
+    files: Optional[List[UploadFile]] = File(None),
+    urls: Optional[str] = Form(None),
+    check_source_fit: Optional[bool] = Form(None),
+    min_source_fit_score: Optional[float] = Form(None),
+    enable_web_search: Optional[bool] = Form(None)
 ) -> AuditResponse:
     """
-    Run a source-grounded audit synchronously against provided source text and/or files.
+    Run a source-grounded audit synchronously against provided source text, files, URLs, or web search.
     """
     return await process_audit(
         answer=answer,
         source_text=source_text,
-        files=files
+        files=files,
+        urls=urls,
+        check_source_fit_flag=check_source_fit,
+        min_source_fit_score=min_source_fit_score,
+        enable_web_search_flag=enable_web_search
     )
 
 @router.post("/audits/export/markdown")

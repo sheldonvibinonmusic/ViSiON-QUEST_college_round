@@ -39,4 +39,28 @@ class Settings:
     # Supported File Types for Source Extraction
     SUPPORTED_FILE_EXTENSIONS: List[str] = [".txt", ".pdf", ".docx"]
 
+    # Source Fit Check Settings (Default OFF)
+    SOURCE_FIT_ENABLED: bool = os.getenv("SOURCE_FIT_ENABLED", "false").lower() in ("true", "1", "yes")
+    SOURCE_FIT_OFF_TOPIC_THRESHOLD: float = float(os.getenv("SOURCE_FIT_OFF_TOPIC_THRESHOLD", "0.15"))
+    SOURCE_FIT_RELEVANT_THRESHOLD: float = float(os.getenv("SOURCE_FIT_RELEVANT_THRESHOLD", "0.45"))
+
+    # URL Ingestion Settings (Default OFF)
+    URL_INGESTION_ENABLED: bool = os.getenv("URL_INGESTION_ENABLED", "false").lower() in ("true", "1", "yes")
+    URL_MAX_BYTES: int = int(os.getenv("URL_MAX_BYTES", str(2 * 1024 * 1024)))
+    URL_TIMEOUT_SECONDS: float = float(os.getenv("URL_TIMEOUT_SECONDS", "5.0"))
+
+    # Free Web Evidence & Fallback Settings (Default OFF)
+    WEB_EVIDENCE_ENABLED: bool = os.getenv("WEB_EVIDENCE_ENABLED", "false").lower() in ("true", "1", "yes")
+    MAX_WEB_QUERIES_PER_AUDIT: int = int(os.getenv("MAX_WEB_QUERIES_PER_AUDIT", "5"))
+    WEB_CACHE_TTL_SECONDS: int = int(os.getenv("WEB_CACHE_TTL_SECONDS", "900"))
+
+    # Optional External Search API Keys (Keyless operation works when None)
+    TAVILY_API_KEY: str | None = os.getenv("TAVILY_API_KEY")
+    SERPER_API_KEY: str | None = os.getenv("SERPER_API_KEY")
+    OPENALEX_API_KEY: str | None = os.getenv("OPENALEX_API_KEY")
+    CROSSREF_MAILTO: str = os.getenv("CROSSREF_MAILTO", "auditor@secondopinion.local")
+
+    # Optional Local Verifier Model (Default OFF)
+    MINICHECK_ENABLED: bool = os.getenv("MINICHECK_ENABLED", "false").lower() in ("true", "1", "yes")
+
 settings = Settings()

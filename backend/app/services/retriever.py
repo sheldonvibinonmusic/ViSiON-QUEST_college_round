@@ -34,6 +34,7 @@ class BM25Retriever:
         self,
         query: str,
         source_name_map: dict = None,
+        chunk_provenance_map: dict = None,
         top_k: int = 3,
         min_overlap: int = 2
     ) -> List[EvidenceReference]:
@@ -66,6 +67,7 @@ class BM25Retriever:
 
             chunk = self.chunks[idx]
             source_name = (source_name_map or {}).get(chunk.source_id, "Source Document")
+            provenance = (chunk_provenance_map or {}).get(chunk.chunk_id, {})
 
             candidates.append(
                 EvidenceReference(
@@ -79,6 +81,9 @@ class BM25Retriever:
                     end_char=chunk.end_char,
                     relation="candidate",
                     retrieval_rank=rank,
+                    origin_type=provenance.get("origin_type", "user_document"),
+                    source_url=provenance.get("source_url"),
+                    retrieved_at=provenance.get("retrieved_at"),
                 )
             )
 

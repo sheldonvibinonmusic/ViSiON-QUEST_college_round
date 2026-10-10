@@ -44,15 +44,21 @@ def validate_files_metadata(files: Optional[List[UploadFile]]) -> None:
                 f"File '{f.filename}' has unsupported extension '{ext}'. Supported extensions: {', '.join(settings.SUPPORTED_FILE_EXTENSIONS)}."
             )
 
-def validate_source_presence(source_text: Optional[str], files: Optional[List[UploadFile]]) -> None:
-    """Ensure at least one source input (pasted text or file) is provided."""
+def validate_source_presence(
+    source_text: Optional[str],
+    files: Optional[List[UploadFile]],
+    urls: Optional[str] = None,
+    allow_web_search: bool = False
+) -> None:
+    """Ensure at least one source input is provided, unless web search mode is enabled."""
     has_text = bool(source_text and source_text.strip())
     has_files = bool(files and any(f and f.filename for f in files))
+    has_urls = bool(urls and urls.strip())
 
-    if not has_text and not has_files:
+    if not has_text and not has_files and not has_urls and not allow_web_search:
         raise SecondOpinionException(
             ErrorCode.SOURCE_EMPTY_OR_UNREADABLE,
-            "At least one source document or pasted reference text must be supplied."
+            "At least one source document, web URL, or pasted reference text must be supplied."
         )
 
 def validate_extracted_source_length(total_chars: int) -> None:

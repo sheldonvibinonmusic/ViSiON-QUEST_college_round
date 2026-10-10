@@ -1,0 +1,242 @@
+"""
+URL Ingestion & Strict SSRF Defense Service.
+Fetches user-provided web URLs with pre-flight DNS inspection, private/loopback/cloud-metadata
+IP blocking, size caps, redirect re-validation, and local HTML content extraction.
+"""
+import re
+import socket
+import ipaddress
+import urllib.parse
+import html
+from html.parser import HTMLParser
+from typing import List, Tuple, Optional, Set
+import httpx
+
+from backend.app.config import settings
+from backend.app.schemas import SourceDocument, SourceChunk
+from backend.app.services.source_chunks import chunk_document
+from backend.app.services.document_parser import ParsedResult, ParsedPage
+from backend.app.util.hashes import generate_id, compute_sha256
+from backend.app.errors import ErrorCode, SecondOpinionException
+
+# Blocked tags whose content should be completely discarded
+IGNORE_TAGS: Set[str] = {
+    "script", "style", "nav", "footer", "header", "noscript",
+    "svg", "form", "aside", "select", "button"
+}
+
+# Block-level tags that should insert newlines
+BLOCK_TAGS: Set[str] = {
+    "p", "div", "h1", "h2", "h3", "h4", "h5", "h6",
+    "li", "br", "tr", "section", "article", "blockquote", "pre"
+}
+
+class HTMLContentExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.title: str = ""
+        self.text_chunks: List[str] = []
+        self._ignore_depth = 0
+        self._in_title = False
+
+    def handle_starttag(self, tag: str, attrs):
+        lower_tag = tag.lower()
+        if lower_tag in IGNORE_TAGS:
+            self._ignore_depth += 1
+        elif lower_tag == "title":
+            self._in_title = True
+        elif lower_tag in BLOCK_TAGS:
+            self.text_chunks.append("\n")
+
+    def handle_endtag(self, tag: str):
+        lower_tag = tag.lower()
+        if lower_tag in IGNORE_TAGS:
+            self._ignore_depth = max(0, self._ignore_depth - 1)
+        elif lower_tag == "title":
+            self._in_title = False
+        elif lower_tag in BLOCK_TAGS:
+            self.text_chunks.append("\n")
+
+    def handle_data(self, data: str):
+        if self._in_title:
+            self.title += data.strip() + " "
+        elif self._ignore_depth == 0:
+            cleaned = data.strip()
+            if cleaned:
+                self.text_chunks.append(cleaned + " ")
+
+    def get_extracted_text(self) -> Tuple[str, str]:
+        title = html.unescape(self.title).strip()
+        raw_text = "".join(self.text_chunks)
+        # Normalize newlines and whitespace
+        clean_text = re.sub(r"[ \t]+", " ", raw_text)
+        clean_text = re.sub(r"\n\s*\n+", "\n\n", clean_text).strip()
+        return title, html.unescape(clean_text)
+
+def validate_url_and_check_ssrf(url_str: str) -> urllib.parse.ParseResult:
+    """
+    Validate URL structure and perform pre-flight DNS resolution to block SSRF vectors:
+    - Loopback (127.0.0.0/8, ::1)
+    - RFC 1918 Private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+    - Link-local and Cloud metadata (169.254.0.0/16 including 169.254.169.254)
+    - Broadcast / Unspecified (0.0.0.0/8, ::)
+    """
+    try:
+        parsed = urllib.parse.urlparse(url_str.strip())
+    except Exception:
+        raise SecondOpinionException(
+            ErrorCode.INVALID_INPUT,
+            f"Malformed URL provided: '{url_str}'."
+        )
+
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise SecondOpinionException(
+            ErrorCode.INVALID_INPUT,
+            f"Invalid scheme in URL '{url_str}'. Only 'http' and 'https' are permitted."
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise SecondOpinionException(
+            ErrorCode.INVALID_INPUT,
+            f"URL '{url_str}' lacks a valid hostname."
+        )
+
+    # Resolve hostname via DNS
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise SecondOpinionException(
+            ErrorCode.INVALID_INPUT,
+            f"Could not resolve domain name for URL '{url_str}'."
+        )
+
+    for entry in addr_info:
+        ip_str = entry[4][0]
+        try:
+            ip_obj = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+
+        if (
+            ip_obj.is_private or
+            ip_obj.is_loopback or
+            ip_obj.is_link_local or
+            ip_obj.is_multicast or
+            ip_obj.is_reserved or
+            ip_obj.is_unspecified
+        ):
+            raise SecondOpinionException(
+                ErrorCode.INVALID_INPUT,
+                f"Security alert: URL '{url_str}' resolves to blocked private, loopback, or metadata IP ({ip_str})."
+            )
+
+    return parsed
+
+async def fetch_and_parse_url(url_str: str) -> Tuple[SourceDocument, List[SourceChunk]]:
+    """
+    Safely download web page content, enforce size cap, extract readable text,
+    and convert to SourceDocument and SourceChunk objects.
+    """
+    parsed = validate_url_and_check_ssrf(url_str)
+    headers = {
+        "User-Agent": "SecondOpinionAuditor/1.0 (Web Reference Auditor; mailto:auditor@secondopinion.local)",
+        "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8"
+    }
+
+    current_url = url_str
+    redirect_count = 0
+    max_redirects = 3
+    downloaded_bytes = bytearray()
+
+    async with httpx.AsyncClient(timeout=settings.URL_TIMEOUT_SECONDS, follow_redirects=False) as client:
+        while True:
+            try:
+                resp = await client.get(current_url, headers=headers)
+            except Exception as e:
+                raise SecondOpinionException(
+                    ErrorCode.INVALID_INPUT,
+                    f"Failed to connect to URL '{current_url}': {str(e)}"
+                )
+
+            # Re-validate redirect targets for SSRF safety
+            if resp.status_code in (301, 302, 303, 307, 308):
+                redirect_url = resp.headers.get("location")
+                if not redirect_url:
+                    break
+                redirect_count += 1
+                if redirect_count > max_redirects:
+                    raise SecondOpinionException(
+                        ErrorCode.INVALID_INPUT,
+                        f"URL exceeded maximum allowed redirect limit ({max_redirects})."
+                    )
+                # Resolve relative redirects
+                full_redirect_url = urllib.parse.urljoin(current_url, redirect_url)
+                validate_url_and_check_ssrf(full_redirect_url)
+                current_url = full_redirect_url
+                continue
+
+            if resp.status_code >= 400:
+                raise SecondOpinionException(
+                    ErrorCode.INVALID_INPUT,
+                    f"URL returned HTTP error {resp.status_code}: '{current_url}'."
+                )
+
+            content = resp.content
+            if len(content) > settings.URL_MAX_BYTES:
+                raise SecondOpinionException(
+                    ErrorCode.CONTENT_TOO_LARGE,
+                    f"Web page from '{current_url}' ({len(content)} bytes) exceeds the size limit ({settings.URL_MAX_BYTES} bytes)."
+                )
+
+            downloaded_bytes = content
+            break
+
+    # Decode HTML text
+    try:
+        html_text = downloaded_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        html_text = downloaded_bytes.decode("latin-1", errors="replace")
+
+    # Extract clean text and title
+    extractor = HTMLContentExtractor()
+    try:
+        extractor.feed(html_text)
+        title, clean_text = extractor.get_extracted_text()
+    except Exception:
+        # Fallback regex extraction if HTML parser fails
+        clean_text = re.sub(r"<[^>]+>", " ", html_text)
+        clean_text = re.sub(r"\s+", " ", clean_text).strip()
+        title = parsed.netloc
+
+    if not clean_text or len(clean_text) < 20:
+        raise SecondOpinionException(
+            ErrorCode.SOURCE_EMPTY_OR_UNREADABLE,
+            f"URL '{url_str}' contained no extractable textual article content."
+        )
+
+    doc_title = title if title else parsed.netloc
+    filename = f"Web: {doc_title[:50]}"
+    sha = compute_sha256(clean_text.encode("utf-8"))
+    source_id = generate_id("src_url")
+
+    source_doc = SourceDocument(
+        source_id=source_id,
+        filename=filename,
+        media_type="text/html",
+        sha256=sha,
+        character_count=len(clean_text),
+        page_count=1,
+        extraction_status="success",
+        warnings=[]
+    )
+
+    page = ParsedPage(page_number=1, text=clean_text, start_char=0, end_char=len(clean_text))
+    parsed_result = ParsedResult(
+        document=source_doc,
+        pages=[page],
+        full_text=clean_text
+    )
+
+    chunks = chunk_document(parsed_result)
+    return source_doc, chunks
