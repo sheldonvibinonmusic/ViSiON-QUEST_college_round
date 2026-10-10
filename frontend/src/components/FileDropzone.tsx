@@ -44,7 +44,6 @@ export function FileDropzone({
         return
       }
 
-      // Check duplicates
       if (!newFiles.some((f) => f.name === file.name && f.size === file.size)) {
         newFiles.push(file)
       }
@@ -72,10 +71,10 @@ export function FileDropzone({
           handleFiles(e.dataTransfer.files)
         }}
         onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+        className={`border border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
           dragActive
-            ? 'border-indigo-500 bg-indigo-50/50'
-            : 'border-slate-300 hover:border-slate-400 bg-slate-50/50'
+            ? 'border-white/50 bg-white/10'
+            : 'border-white/15 hover:border-white/30 bg-white/[0.02]'
         }`}
       >
         <input
@@ -86,39 +85,39 @@ export function FileDropzone({
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
         />
-        <UploadCloud className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-        <p className="text-sm font-semibold text-slate-700">
-          Click to upload or drag & drop reference files
+        <UploadCloud className="w-7 h-7 text-neutral-400 mx-auto mb-2" />
+        <p className="text-sm font-medium text-neutral-200">
+          Click to upload or drag &amp; drop source documents
         </p>
-        <p className="text-xs text-slate-500 mt-1">
-          Supports PDF, DOCX, and TXT • Max {maxFiles} files • Up to 10MB per file
+        <p className="text-xs text-neutral-500 mt-1">
+          Supports PDF, DOCX, and TXT • Up to {maxFiles} files • 10MB limit per file
         </p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="flex items-center gap-2 p-3 bg-rose-950/40 border border-rose-500/30 rounded-lg text-rose-300 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
           <span>{error}</span>
         </div>
       )}
 
       {files.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Selected Files ({files.length}/{maxFiles})
+          <p className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
+            Selected Sources ({files.length}/{maxFiles})
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {files.map((file, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-lg text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 bg-[#111111] border border-white/10 rounded-lg text-xs"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <File className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span className="truncate font-medium text-slate-800" title={file.name}>
+                  <File className="w-4 h-4 text-neutral-400 shrink-0" />
+                  <span className="truncate font-medium text-neutral-200" title={file.name}>
                     {file.name}
                   </span>
-                  <span className="text-slate-400 text-[10px] shrink-0">
+                  <span className="text-neutral-500 text-[10px] shrink-0">
                     ({Math.round(file.size / 1024)} KB)
                   </span>
                 </div>
@@ -128,7 +127,7 @@ export function FileDropzone({
                     e.stopPropagation()
                     removeFile(idx)
                   }}
-                  className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors"
+                  className="text-neutral-500 hover:text-rose-400 p-1 rounded transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
