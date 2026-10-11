@@ -84,8 +84,54 @@ body,
 }
 
 .hero {
-  position: relative;
+  position: absolute;
+  left: calc(75.5 * var(--u));
+  top: calc(230.5 * var(--u));
+  max-width: min(calc(880 * var(--u)), 75vw);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   z-index: 20;
+}
+
+.headline {
+  font-size: calc(64 * var(--h));
+  line-height: calc(76 * var(--h));
+  letter-spacing: calc(0.2 * var(--h));
+  min-height: calc(235 * var(--h));
+  max-width: 100%;
+}
+
+.sub {
+  margin-top: calc(24 * var(--h));
+  font-size: calc(20.5 * var(--h));
+  line-height: calc(26 * var(--h));
+  word-spacing: calc(1.8 * var(--h));
+  max-width: 100%;
+}
+
+.actions {
+  margin-top: calc(34 * var(--h));
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: calc(24 * var(--h));
+}
+
+.pill-cta {
+  height: calc(50 * var(--h));
+  padding: 0 calc(28 * var(--h));
+  font-size: calc(20.6 * var(--h));
+  border-radius: 999px;
+  background-color: var(--pill);
+  color: var(--pill-ink);
+  box-shadow: 0 8px 30px rgba(255, 255, 255, 0.12);
+}
+
+.ghost {
+  font-size: calc(20.6 * var(--h));
+  letter-spacing: calc(0.12 * var(--h));
+  color: #ffffff;
 }
 
 /* Video Plate */
@@ -177,6 +223,9 @@ body,
   }
   .hero {
     position: relative;
+    left: auto;
+    top: auto;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     padding: calc(90 * var(--m)) calc(24 * var(--m)) calc(32 * var(--m));
