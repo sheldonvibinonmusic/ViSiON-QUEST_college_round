@@ -12,7 +12,7 @@ export function FileDropzone({
   files,
   onFilesChange,
   maxFiles = 5,
-  maxBytesPerFile = 10 * 1024 * 1024,
+  maxBytesPerFile = 50 * 1024 * 1024,
 }: FileDropzoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = React.useState(false)
@@ -35,7 +35,7 @@ export function FileDropzone({
       }
 
       if (file.size > maxBytesPerFile) {
-        setError(`File '${file.name}' exceeds the 10MB limit.`)
+        setError(`File '${file.name}' exceeds the ${Math.round(maxBytesPerFile / (1024 * 1024))}MB limit.`)
         return
       }
 
@@ -90,7 +90,7 @@ export function FileDropzone({
           Click to upload or drag &amp; drop source documents
         </p>
         <p className="text-xs text-neutral-500 mt-1">
-          Supports PDF, DOCX, and TXT • Up to {maxFiles} files • 10MB limit per file
+          Supports PDF, DOCX, and TXT • Up to {maxFiles} files • {Math.round(maxBytesPerFile / (1024 * 1024))}MB limit per file
         </p>
       </div>
 

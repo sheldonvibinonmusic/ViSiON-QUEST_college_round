@@ -101,6 +101,8 @@ class ClaimFinding(BaseModel):
     model_details: Optional[Dict[str, Any]] = None
     warnings: List[str] = Field(default_factory=list)
     independent_sources_agreeing: int = Field(default=1, description="Number of distinct sources corroborating the finding")
+    checks: List[Dict[str, Any]] = Field(default_factory=list, description="Granular verification checks executed")
+    verdict_reason: Optional[str] = Field(default=None, description="One-line human explanation of the primary factor driving the verdict")
 
 class AuditSummary(BaseModel):
     assessment: str
@@ -147,4 +149,10 @@ class AuditResponse(BaseModel):
     engine_metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: str
     source_fit: Optional[SourceFitSummary] = None
+    truncated: Optional[bool] = Field(default=None, description="Whether input sources exceeded limits and were truncated")
+    original_size: Optional[int] = Field(default=None, description="Original source character count before truncation")
+    kept_size: Optional[int] = Field(default=None, description="Kept source character count after truncation")
+    incomplete: Optional[bool] = Field(default=None, description="Whether audit was truncated by deadline timeout")
+    pages_crawled: Optional[int] = Field(default=None, description="Number of subpages crawled for URL sources")
+
 

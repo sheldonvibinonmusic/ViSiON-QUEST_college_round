@@ -140,7 +140,7 @@ export function AuditSummary({ audit }: AuditSummaryProps) {
       </div>
 
       {/* Incomplete Audit Banner (UI_HANDOFF_NEEDS #6) */}
-      {audit.status === 'incomplete' && (
+      {(audit.status === 'incomplete' || audit.incomplete) && (
         <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
@@ -148,9 +148,30 @@ export function AuditSummary({ audit }: AuditSummaryProps) {
               Incomplete Audit Evaluation
             </div>
             <div className="text-amber-200/90 leading-relaxed">
-              The audit execution timed out or was interrupted before completing all claims. Partial claim findings evaluated prior to termination are displayed below.
+              The audit execution reached time limit before evaluating all claims. Partial claim findings evaluated prior to termination are displayed below.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Large Input Truncation Notice */}
+      {audit.truncated && (
+        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-neutral-300 text-xs">
+          <Info className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-semibold text-white">Large Input Processing Window</span>
+            <div className="text-neutral-400 leading-relaxed text-[11px]">
+              Provided sources exceeded standard in-memory window ({audit.original_size?.toLocaleString()} characters). The first {audit.kept_size?.toLocaleString()} characters were indexed and audited without interruption.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Domain Crawl Notice */}
+      {Boolean(audit.pages_crawled && audit.pages_crawled > 1) && (
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-sky-950/20 border border-sky-500/20 text-sky-200 text-xs font-mono">
+          <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+          <span>Explored {audit.pages_crawled} subpages within same-domain boundary for corroborating evidence.</span>
         </div>
       )}
 

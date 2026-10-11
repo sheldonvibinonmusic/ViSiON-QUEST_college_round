@@ -49,6 +49,12 @@ export function ClaimList({ findings, selectedClaimId, onSelectClaim }: ClaimLis
                     {finding.explanation}
                   </p>
 
+                  {finding.verdict_reason && (
+                    <div className="text-[11px] font-mono text-neutral-300/90 pt-0.5">
+                      <span className="text-neutral-500">Why: </span>{finding.verdict_reason}
+                    </div>
+                  )}
+
                   {/* High-Stakes Advisory Warnings */}
                   {finding.safety_concerns.length > 0 && (
                     <div className="flex items-center gap-1.5 text-[11px] text-amber-300/90 font-medium pt-1">

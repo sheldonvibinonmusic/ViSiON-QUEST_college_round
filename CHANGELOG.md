@@ -1,6 +1,49 @@
 # Changelog
 
-## [0.9.0] - Complete UI/UX Refinement, Rotating Cinematic Headline & Cinematic Evidence Audit Journey
+## [0.10.0] - Deterministic Audit Engine Overhaul, Failure Map Resolution & Output Clarity
+
+### Added
+- **Deterministic Text & Number Normalizer** (`backend/app/services/normalizer.py`):
+  - Added NFKC Unicode normalization, smart quote/dash cleanup, and tokenization.
+  - Added full numeric/currency/multiplier equivalence parser equating `$45M` == `45 million` == `45,000,000`.
+  - Added pure-Python suffix stemmer and zero-cost synonym/abbreviation expansions without external dependencies.
+- **Fact-Slot Attribute Binding Engine** (`backend/app/services/fact_slots.py`):
+  - Solves Failure Map F1 (Number Blindspot) by binding numerical quantities, metrics, and dates to nearest attribute nouns and named entities within tight lexical windows.
+  - Compares numerical values only when attributes and entities match, eliminating false contradictions across different metrics and catching swapped financial numbers ($45M/$12M swap).
+- **Modal Strength & Negation/Opposites Verifier** (`backend/app/services/modal_negation.py`):
+  - Solves Failure Map F2 (Modal Inversion) and F5 (Negation and Opposites).
+  - Classifies modal strength into obligations, prohibitions, permissions, and recommendations.
+  - Detects modal shifts (e.g. should -> must) to downgrade to `AMBIGUOUS_OR_CONFLICTING` rather than falsely marking as supported.
+  - Detects directional opposite clashes (increase vs decrease, more vs less, at least vs at most, allowed vs prohibited).
+- **Exact-Entity & Citation Grounding Checker** (`backend/app/services/entity_checker.py`):
+  - Solves Failure Map F3 (Hallucinated Citation Pass) by extracting statutory citations, RFC/ISO standards, case law citations, and proper nouns.
+  - Blocks claims asserting ungrounded entities or fabricated citations from ever receiving `SUPPORTED_BY_SOURCE`.
+- **Domain & Audience Scope Verifier** (`backend/app/services/scope_checker.py`):
+  - Solves Failure Map F4 (Scope Swap) across claims, evidence, and governing section headings.
+  - Detects conflicting scopes (commercial vs recreational, adult vs minor, public vs private, federal vs state/local).
+- **Large Input Processing & Graceful Truncation** (`backend/app/services/audit_service.py`, `backend/app/services/document_parser.py`):
+  - Solves Failure Map F7 by supporting large documents up to 50MB and safely handling inputs > 150k characters without crashing.
+  - Caches and indexes the first 150k characters with `truncated=True` and clear explanatory telemetry.
+  - Adds automatic detection for image-only scanned PDFs without digital text layers (`scanned_pdf_no_text`).
+- **Bounded Same-Domain URL Subpage Crawling** (`backend/app/services/url_fetcher.py`):
+  - Solves Failure Map F8 by discovering and crawling internal subpages on the same registered domain up to depth 2.
+  - Strictly re-evaluates SSRF IP blocks, same-netloc constraints, and robots.txt policies for every subpage.
+- **Per-Claim Exception Isolation & Deadline Management** (`backend/app/services/audit_service.py`, `backend/app/main.py`):
+  - Solves Failure Map F9 by isolating evaluation errors on individual claims and returning well-formed partial findings if a deadline is reached.
+  - Adds global exception handling to FastAPI for standardized error envelopes.
+- **Output Clarity & Explainability** (`backend/app/schemas.py`, `frontend/src/components/EvidencePanel.tsx`, `frontend/src/components/ClaimList.tsx`, `frontend/src/components/AuditSummary.tsx`):
+  - Solves Failure Map F10 by providing `verdict_reason` ("Why this verdict") and granular `checks` breakdown on every claim card and evidence inspector.
+  - Adds calm UI notices for truncated inputs, explored subpages, and section numbers (§).
+- **Comprehensive Failure Map Regression Test Suite** (`backend/tests/test_accuracy_engine.py`):
+  - 12 comprehensive unit and integration tests verifying F1 through F10 with 100% pass rate.
+- **Plain English Change Documentation** (`docs/CHANGES_EXPLAINED.md`):
+  - 10-chapter simple English guide explaining each change, its root cause, and its proof like to a 10-year-old.
+
+### Refactored
+- `backend/app/services/rules_verifier.py`: Fully overhauled to synthesize signals from fact slots, modal negation, exact entities, and scope alignment.
+- `backend/app/services/verdict_mapper.py`: Integrated conservative combiner logic with topic-specificity requirements to eliminate false contradictions.
+- `frontend/src/components/FileDropzone.tsx`: Raised dropzone limit to 50MB with dynamic size indicators.
+
 
 ### Added
 - **Four-Message Animated Rotating Headline** (`frontend/src/components/HeroContent.tsx`, `frontend/src/constants/headlines.ts`, `frontend/src/tests/headline.test.ts`):

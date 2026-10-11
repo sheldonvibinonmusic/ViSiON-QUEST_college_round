@@ -61,6 +61,8 @@ export interface ClaimFinding {
   model_details?: Record<string, unknown> | null
   warnings: string[]
   independent_sources_agreeing?: number
+  checks?: Array<Record<string, unknown>>
+  verdict_reason?: string | null
 }
 
 export interface SourceFitDocument {
@@ -106,6 +108,11 @@ export interface AuditResponse {
   engine_metadata: Record<string, unknown>
   created_at: string
   source_fit?: SourceFitSummary | null
+  truncated?: boolean | null
+  original_size?: number | null
+  kept_size?: number | null
+  incomplete?: boolean | null
+  pages_crawled?: number | null
 }
 
 function extractErrorMessage(errorData: any, defaultMsg: string): string {

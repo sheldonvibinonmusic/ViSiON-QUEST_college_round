@@ -8,6 +8,26 @@ from backend.app.schemas import SourceChunk
 from backend.app.services.document_parser import ParsedResult
 from backend.app.util.hashes import generate_id
 
+import re
+
+def find_active_heading_for_offset(full_text: str, offset: int) -> Optional[str]:
+    """Find the most recent section heading preceding the given character offset."""
+    prefix = full_text[:offset]
+    lines = prefix.split("\n")
+    for line in reversed(lines):
+        line_s = line.strip()
+        if not line_s:
+            continue
+        if re.match(r"^#{1,4}\s+(.+)$", line_s):
+            return re.sub(r"^#{1,4}\s+", "", line_s).strip()
+        if re.match(r"^(?:Section|Chapter|Article|Part)\s+[\dA-Za-z.-]+[:\s]+[^\n]+$", line_s, re.IGNORECASE):
+            return line_s
+        if line_s.isupper() and 3 <= len(line_s) <= 60 and not line_s.endswith("."):
+            return line_s
+        if line_s.endswith(":") and len(line_s) <= 60 and not line_s.startswith("-"):
+            return line_s[:-1].strip()
+    return None
+
 def determine_page_for_offset(parsed: ParsedResult, char_offset: int) -> Optional[int]:
     """Find the 1-based page number covering the given character offset."""
     for page in parsed.pages:
@@ -62,6 +82,7 @@ def chunk_document(
         chunk_text = full_text[start_char:end_char]
         page_num = determine_page_for_offset(parsed, start_char)
         
+        section_name = find_active_heading_for_offset(full_text, start_char)
         return [
             SourceChunk(
                 chunk_id=generate_id("chk"),
@@ -70,7 +91,7 @@ def chunk_document(
                 start_char=start_char,
                 end_char=end_char,
                 page_number=page_num,
-                section=None,
+                section=section_name,
                 retrieval_score=None
             )
         ]
@@ -90,6 +111,7 @@ def chunk_document(
         end_char = tokens[chunk_token_end - 1][2]
         chunk_text = full_text[start_char:end_char]
         page_num = determine_page_for_offset(parsed, start_char)
+        section_name = find_active_heading_for_offset(full_text, start_char)
 
         chunks.append(
             SourceChunk(
@@ -99,7 +121,7 @@ def chunk_document(
                 start_char=start_char,
                 end_char=end_char,
                 page_number=page_num,
-                section=None,
+                section=section_name,
                 retrieval_score=None
             )
         )

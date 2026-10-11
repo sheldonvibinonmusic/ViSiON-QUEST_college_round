@@ -86,7 +86,13 @@ def parse_pdf_bytes(content: bytes, filename: str) -> ParsedResult:
             f"PDF '{filename}' contains 0 pages."
         )
 
-    for idx, page in enumerate(reader.pages):
+    max_pages = 150
+    pages_to_process = min(page_count, max_pages)
+    if page_count > max_pages:
+        warnings.append(f"Processed first {max_pages} pages of {page_count}-page PDF within safety processing limit.")
+
+    for idx in range(pages_to_process):
+        page = reader.pages[idx]
         page_number = idx + 1
         page_text = page.extract_text() or ""
         page_text = page_text.replace("\r\n", "\n").replace("\r", "\n")
@@ -99,8 +105,9 @@ def parse_pdf_bytes(content: bytes, filename: str) -> ParsedResult:
         full_text_parts.append(page_text)
 
     full_text = "".join(full_text_parts)
-    if not full_text.strip():
-        warnings.append("No extractable digital text found in PDF. Scanned pages require OCR (not supported in MVP).")
+    is_empty_or_scanned = len(full_text.strip()) < 20
+    if is_empty_or_scanned:
+        warnings.append("Scanned or image-only PDF detected. No extractable digital text layer found; OCR is required to extract text from scanned images.")
 
     doc = SourceDocument(
         source_id=source_id,
@@ -109,7 +116,7 @@ def parse_pdf_bytes(content: bytes, filename: str) -> ParsedResult:
         sha256=sha256,
         character_count=len(full_text),
         page_count=page_count,
-        extraction_status="success" if full_text.strip() else "empty_text",
+        extraction_status="scanned_pdf_no_text" if is_empty_or_scanned else "success",
         warnings=warnings
     )
 

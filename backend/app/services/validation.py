@@ -79,9 +79,11 @@ def validate_source_presence(
         )
 
 def validate_extracted_source_length(total_chars: int) -> None:
-    """Ensure total extracted source text does not exceed safety cap."""
-    if total_chars > settings.MAX_SOURCE_CHARS:
+    """Ensure total extracted source text does not exceed maximum processing limit."""
+    max_cap = getattr(settings, "MAX_TEXT_CHARS", 50000000)
+    if total_chars > max_cap:
         raise SecondOpinionException(
             ErrorCode.CONTENT_TOO_LARGE,
-            f"Total extracted source text ({total_chars} characters) exceeds the maximum allowed limit ({settings.MAX_SOURCE_CHARS})."
+            f"Total extracted source text ({total_chars} characters) exceeds the maximum allowed limit ({max_cap})."
         )
+

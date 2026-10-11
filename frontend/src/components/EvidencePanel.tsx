@@ -83,6 +83,29 @@ export function EvidencePanel({ finding }: EvidencePanelProps) {
           "{finding.claim_text}"
         </p>
         <p className="text-xs text-[var(--muted)]">{finding.explanation}</p>
+        {finding.verdict_reason && (
+          <div className="p-2.5 rounded-lg bg-white/[0.04] border border-white/10 text-xs text-neutral-200 mt-2">
+            <span className="font-mono text-neutral-400 font-medium">Why this verdict: </span>
+            <span>{finding.verdict_reason}</span>
+          </div>
+        )}
+        {Boolean(finding.checks && finding.checks.length > 0) && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {finding.checks!.map((chk, i) => (
+              <span
+                key={i}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                  chk.passed
+                    ? 'bg-emerald-950/30 text-emerald-300 border-emerald-500/20'
+                    : 'bg-rose-950/30 text-rose-300 border-rose-500/20'
+                }`}
+                title={String(chk.detail || '')}
+              >
+                {String(chk.check || '').replace('_', ' ')}: {chk.passed ? '✓' : '✗'}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Evidence Passages */}
@@ -123,6 +146,11 @@ export function EvidencePanel({ finding }: EvidencePanelProps) {
                     {evi.citation_verified && (
                       <span className="flex items-center gap-0.5 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded text-emerald-300 text-[10px]">
                         <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" /> Verified Citation
+                      </span>
+                    )}
+                    {evi.section && (
+                      <span className="flex items-center gap-0.5 bg-white/10 px-1.5 py-0.5 rounded text-neutral-200 text-[10px]" title={`Section: ${evi.section}`}>
+                        § {evi.section.slice(0, 30)}
                       </span>
                     )}
                     {evi.page_number && (

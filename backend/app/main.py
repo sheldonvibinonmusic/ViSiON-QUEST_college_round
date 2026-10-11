@@ -25,6 +25,22 @@ app.add_middleware(
 # Include API routes
 app.include_router(audit_router)
 
+from fastapi.responses import JSONResponse
+from fastapi import Request
+from backend.app.errors import SecondOpinionException, ErrorCode
+
+@app.exception_handler(SecondOpinionException)
+async def second_opinion_exception_handler(request: Request, exc: SecondOpinionException):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": {"code": ErrorCode.AUDIT_FAILED.value, "message": f"Internal server error: {str(exc)}"}}
+    )
+
+
 @app.get("/")
 def root():
     return {

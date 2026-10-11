@@ -191,6 +191,66 @@
                 "type": "null"
               }
             ]
+          },
+          "truncated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truncated",
+            "description": "Whether input sources exceeded limits and were truncated"
+          },
+          "original_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Size",
+            "description": "Original source character count before truncation"
+          },
+          "kept_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kept Size",
+            "description": "Kept source character count after truncation"
+          },
+          "incomplete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incomplete",
+            "description": "Whether audit was truncated by deadline timeout"
+          },
+          "pages_crawled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages Crawled",
+            "description": "Number of subpages crawled for URL sources"
           }
         },
         "type": "object",
@@ -424,6 +484,27 @@
             "title": "Independent Sources Agreeing",
             "description": "Number of distinct sources corroborating the finding",
             "default": 1
+          },
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Checks",
+            "description": "Granular verification checks executed"
+          },
+          "verdict_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Reason",
+            "description": "One-line human explanation of the primary factor driving the verdict"
           }
         },
         "type": "object",

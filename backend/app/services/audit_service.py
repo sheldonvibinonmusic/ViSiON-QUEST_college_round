@@ -42,7 +42,7 @@ from backend.app.services.nli_verifier import NLIVerifier
 from backend.app.services.safety_flags import check_safety_concerns
 from backend.app.services.source_fit import check_source_fit
 from backend.app.services.web_evidence.provider_chain import web_evidence_chain
-from backend.app.services.url_fetcher import fetch_and_parse_url
+from backend.app.services.url_fetcher import fetch_and_parse_url, crawl_and_parse_url
 from backend.app.services.cost_guard import CostBudgetTracker, is_checkable_claim
 from backend.app.util.hashes import generate_id, compute_sha256
 from backend.app.errors import ErrorCode, SecondOpinionException
@@ -99,11 +99,12 @@ async def process_audit(
             if not file or not file.filename:
                 continue
 
+            max_bytes = max(settings.MAX_FILE_BYTES, getattr(settings, "MAX_UPLOAD_MB", 50) * 1024 * 1024)
             content = await file.read()
-            if len(content) > settings.MAX_FILE_BYTES:
+            if len(content) > max_bytes:
                 raise SecondOpinionException(
                     ErrorCode.FILE_TOO_LARGE,
-                    f"File '{file.filename}' ({len(content)} bytes) exceeds the maximum allowed limit ({settings.MAX_FILE_BYTES} bytes)."
+                    f"File '{file.filename}' ({len(content)} bytes) exceeds the maximum allowed limit ({max_bytes} bytes)."
                 )
 
             # Duplicate file check per request
@@ -136,21 +137,25 @@ async def process_audit(
             chunks = chunk_document(parsed_res)
             all_chunks.extend(chunks)
 
-    # 3.5 Ingest web URLs if supplied
+    # 3.5 Ingest web URLs if supplied (with bounded same-domain subpage crawl)
+    total_pages_crawled = 0
     if unique_urls:
         if urls and urls.strip():
             raw_url_count = len([u.strip() for u in re.split(r"[\n,]+", urls) if u.strip()])
             if raw_url_count > len(unique_urls):
                 warnings.append("Duplicate URLs in submission were automatically deduplicated.")
         for u in unique_urls:
-            doc, u_chunks = await fetch_and_parse_url(u)
-            if doc.sha256 in seen_hashes:
-                warnings.append(f"Skipped duplicate content from URL '{u}'.")
-                continue
-            seen_hashes.add(doc.sha256)
-            source_documents.append(doc)
-            source_name_map[doc.source_id] = doc.filename
-            total_extracted_chars += doc.character_count
+            u_docs, u_chunks, crawled_count = await crawl_and_parse_url(
+                u, max_subpages=3, time_budget_seconds=5.0
+            )
+            total_pages_crawled += crawled_count
+            for doc in u_docs:
+                if doc.sha256 in seen_hashes:
+                    continue
+                seen_hashes.add(doc.sha256)
+                source_documents.append(doc)
+                source_name_map[doc.source_id] = doc.filename
+                total_extracted_chars += doc.character_count
             all_chunks.extend(u_chunks)
             for chk in u_chunks:
                 url_chunks_map[chk.chunk_id] = u
@@ -159,9 +164,31 @@ async def process_audit(
                     "source_url": u,
                     "retrieved_at": datetime.now(timezone.utc).isoformat(),
                 }
+        if total_pages_crawled > len(unique_urls):
+            warnings.append(f"Crawled {total_pages_crawled} web pages within same-domain boundary.")
 
-    # 4. Check total extracted length limit
+    # 4. Check total extracted length limit and apply graceful truncation
     validate_extracted_source_length(total_extracted_chars)
+
+    is_truncated = False
+    original_size = total_extracted_chars
+    kept_size = total_extracted_chars
+
+    if total_extracted_chars > settings.MAX_SOURCE_CHARS and all_chunks:
+        is_truncated = True
+        truncated_chunks: List[SourceChunk] = []
+        running_chars = 0
+        for chk in all_chunks:
+            if running_chars + len(chk.text) > settings.MAX_SOURCE_CHARS:
+                break
+            truncated_chunks.append(chk)
+            running_chars += len(chk.text)
+        if truncated_chunks:
+            all_chunks = truncated_chunks
+            kept_size = running_chars
+            warnings.append(
+                f"Source document text ({total_extracted_chars:,} characters) exceeded active memory processing window; processed first {kept_size:,} characters across {len(all_chunks)} chunks."
+            )
 
     user_had_sources = len(all_chunks) > 0
     if not user_had_sources and not should_enable_web_search:
@@ -305,25 +332,45 @@ async def process_audit(
 
         start_time = time.monotonic()
         is_incomplete = False
+        deadline = max_audit_seconds or 30.0
         for claim in claims:
-            if max_audit_seconds and (time.monotonic() - start_time) > max_audit_seconds:
+            if (time.monotonic() - start_time) > deadline:
                 warnings.append(
-                    f"Audit execution reached time limit ({max_audit_seconds}s) after evaluating {len(findings)} of {len(claims)} claims. Returning partial results."
+                    f"Audit execution reached time limit ({deadline:.1f}s) after evaluating {len(findings)} of {len(claims)} claims. Returning partial results."
                 )
                 is_incomplete = True
                 break
 
-            candidates = retriever.retrieve_candidates(
-                query=claim.text,
-                source_name_map=source_name_map,
-                chunk_provenance_map=chunk_provenance_map,
-                top_k=3
-            )
-            finding = map_verdict_for_claim(
-                claim=claim,
-                candidate_evidence=candidates,
-                nli_verifier=nli_verifier
-            )
+            try:
+                candidates = retriever.retrieve_candidates(
+                    query=claim.text,
+                    source_name_map=source_name_map,
+                    chunk_provenance_map=chunk_provenance_map,
+                    top_k=3
+                )
+                finding = map_verdict_for_claim(
+                    claim=claim,
+                    candidate_evidence=candidates,
+                    nli_verifier=nli_verifier
+                )
+            except Exception as claim_err:
+                # Per-claim exception isolation (F9)
+                finding = ClaimFinding(
+                    claim_id=claim.claim_id,
+                    claim_text=claim.text,
+                    start_char=claim.start_char,
+                    end_char=claim.end_char,
+                    verdict=FactualVerdict.NOT_ESTABLISHED_BY_SOURCE,
+                    explanation=f"Evaluator encountered isolated error processing this claim: {str(claim_err)}",
+                    evidence=[],
+                    logic_concerns=[],
+                    safety_concerns=check_safety_concerns(claim.text),
+                    review_priority="high",
+                    evidence_strength=0.0,
+                    warnings=[f"Isolated claim evaluation error: {str(claim_err)}"],
+                    checks=[{"check": "claim_isolation", "passed": False, "detail": str(claim_err)}],
+                    verdict_reason="Internal evaluation exception isolated."
+                )
             findings.append(finding)
 
     # 9. Aggregate Summary
@@ -353,6 +400,11 @@ async def process_audit(
         engine_metadata=engine_metadata,
         created_at=created_at,
         source_fit=source_fit_result,
+        truncated=is_truncated,
+        original_size=original_size,
+        kept_size=kept_size,
+        incomplete=is_incomplete,
+        pages_crawled=total_pages_crawled if (unique_urls and total_pages_crawled > 0) else None,
     )
 
 def generate_markdown_report(audit: AuditResponse) -> str:

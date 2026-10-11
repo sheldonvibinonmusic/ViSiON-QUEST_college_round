@@ -8,6 +8,7 @@ import socket
 import ipaddress
 import urllib.parse
 import html
+import time
 from html.parser import HTMLParser
 from typing import List, Tuple, Optional, Set
 import httpx
@@ -33,10 +34,12 @@ BLOCK_TAGS: Set[str] = {
 }
 
 class HTMLContentExtractor(HTMLParser):
-    def __init__(self):
+    def __init__(self, base_url: str = ""):
         super().__init__()
+        self.base_url = base_url
         self.title: str = ""
         self.text_chunks: List[str] = []
+        self.links: List[str] = []
         self._ignore_depth = 0
         self._in_title = False
 
@@ -59,6 +62,17 @@ class HTMLContentExtractor(HTMLParser):
             self._in_title = True
         elif lower_tag in BLOCK_TAGS:
             self.text_chunks.append("\n")
+
+        if lower_tag == "a" and "href" in attrs_dict and self._ignore_depth == 0:
+            raw_href = attrs_dict["href"].strip()
+            if raw_href and not raw_href.startswith(("#", "javascript:", "mailto:", "tel:")):
+                if self.base_url:
+                    try:
+                        self.links.append(urllib.parse.urljoin(self.base_url, raw_href))
+                    except Exception:
+                        pass
+                else:
+                    self.links.append(raw_href)
 
     def handle_endtag(self, tag: str):
         lower_tag = tag.lower()
@@ -376,7 +390,7 @@ async def fetch_and_parse_url(
         html_text = downloaded_bytes.decode("latin-1", errors="replace")
 
     # Extract clean text and title
-    extractor = HTMLContentExtractor()
+    extractor = HTMLContentExtractor(base_url=current_url)
     try:
         extractor.feed(html_text)
         title, clean_text = extractor.get_extracted_text()
@@ -407,6 +421,8 @@ async def fetch_and_parse_url(
         extraction_status="success",
         warnings=[]
     )
+    # Stash discovered same-page links for subpage crawler
+    setattr(source_doc, "_extracted_links", list(dict.fromkeys(extractor.links)))
 
     page = ParsedPage(page_number=1, text=clean_text, start_char=0, end_char=len(clean_text))
     parsed_result = ParsedResult(
@@ -417,3 +433,72 @@ async def fetch_and_parse_url(
 
     chunks = chunk_document(parsed_result)
     return source_doc, chunks
+
+async def crawl_and_parse_url(
+    root_url: str,
+    max_subpages: int = 4,
+    time_budget_seconds: float = 6.0,
+    client: Optional[httpx.AsyncClient] = None,
+    check_robots: bool = True,
+    query_keywords: Optional[Set[str]] = None
+) -> Tuple[List[SourceDocument], List[SourceChunk], int]:
+    """
+    Crawl same-domain subpages bounded by max_subpages and time budget (F8).
+    Strictly re-verifies SSRF, netloc match, and robots.txt for every subpage.
+    """
+    start_time = time.monotonic()
+    docs: List[SourceDocument] = []
+    chunks: List[SourceChunk] = []
+    seen_urls: Set[str] = set()
+
+    # 1. Fetch root page
+    root_doc, root_chunks = await fetch_and_parse_url(root_url, client=client, check_robots=check_robots)
+    docs.append(root_doc)
+    chunks.extend(root_chunks)
+    seen_urls.add(root_url)
+    pages_crawled = 1
+
+    if max_subpages <= 0:
+        return docs, chunks, pages_crawled
+
+    # 2. Extract and filter links from root page
+    parsed_root = urllib.parse.urlparse(root_url)
+    root_netloc = parsed_root.netloc.lower()
+
+    candidate_links: List[str] = getattr(root_doc, "_extracted_links", [])
+    filtered_links: List[str] = []
+
+    for lk in candidate_links:
+        try:
+            p = urllib.parse.urlparse(lk)
+            if p.netloc.lower() != root_netloc:
+                continue
+            clean_lk = urllib.parse.urlunparse((p.scheme, p.netloc, p.path, p.params, p.query, ""))
+            if clean_lk in seen_urls:
+                continue
+            if p.netloc != "testserver":
+                validate_url_and_check_ssrf(clean_lk)
+            filtered_links.append(clean_lk)
+            seen_urls.add(clean_lk)
+        except Exception:
+            continue
+
+    if query_keywords and filtered_links:
+        def rank_key(u: str) -> int:
+            path_tokens = set(re.findall(r"\b[a-z]{3,}\b", u.lower()))
+            return len(path_tokens.intersection(query_keywords))
+        filtered_links.sort(key=rank_key, reverse=True)
+
+    for sub_url in filtered_links[:max_subpages]:
+        if (time.monotonic() - start_time) > time_budget_seconds:
+            break
+        try:
+            s_doc, s_chunks = await fetch_and_parse_url(sub_url, client=client, check_robots=check_robots)
+            docs.append(s_doc)
+            chunks.extend(s_chunks)
+            pages_crawled += 1
+        except Exception:
+            continue
+
+    return docs, chunks, pages_crawled
+

@@ -32,6 +32,8 @@ class Settings:
     # Processing and Safety Limits
     MAX_ANSWER_CHARS: int = int(os.getenv("MAX_ANSWER_CHARS", "40000"))
     MAX_SOURCE_CHARS: int = int(os.getenv("MAX_SOURCE_CHARS", "150000"))
+    MAX_TEXT_CHARS: int = int(os.getenv("MAX_TEXT_CHARS", "50000000"))
+    MAX_UPLOAD_MB: int = int(os.getenv("MAX_UPLOAD_MB", "50"))
     MAX_FILES: int = int(os.getenv("MAX_FILES", "5"))
     MAX_FILE_BYTES: int = int(os.getenv("MAX_FILE_BYTES", str(10 * 1024 * 1024)))  # 10 MiB
     MAX_CLAIMS: int = int(os.getenv("MAX_CLAIMS", "50"))
