@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SceneMachineState } from '../scene/sceneMachine'
 import { sceneMachine } from '../scene/sceneMachine'
+import { SCENE_TIMING } from '../scene/timing'
 import { SpaceField } from './SpaceField'
 import './scene.css'
 
@@ -56,7 +57,7 @@ export function SceneOverlay({
     const mobileViewport = window.matchMedia('(max-aspect-ratio: 11/10)').matches
     fallbackTimerRef.current = window.setTimeout(
       () => setIsDoorComplete(true),
-      reducedMotion || mobileViewport ? 260 : 900,
+      reducedMotion || mobileViewport ? SCENE_TIMING.CANCEL_RETREAT : SCENE_TIMING.DOOR_OPEN_AND_FLASH,
     )
 
     return () => {
@@ -81,7 +82,7 @@ export function SceneOverlay({
       sceneMachine.dispatch({ type: 'SCENE_RETURNED_TO_IDLE' })
       onSceneStateChange(sceneMachine.getState())
       finishOverlay()
-    }, 260)
+    }, SCENE_TIMING.CANCEL_RETREAT)
   }
 
   return (

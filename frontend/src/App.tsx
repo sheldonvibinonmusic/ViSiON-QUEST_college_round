@@ -137,6 +137,7 @@ export default function App() {
         }}
         setSceneOverlayVisible={setIsSceneOverlayVisible}
         onSceneStateChange={setSceneState}
+        isSceneOverlayVisible={isSceneOverlayVisible}
         health={health}
         activeAudit={activeAudit}
         setActiveAudit={setActiveAudit}

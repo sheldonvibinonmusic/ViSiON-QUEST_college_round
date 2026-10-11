@@ -1,12 +1,14 @@
+import { SCENE_TIMING } from './timing'
+
 /**
  * Temporary scene beat source. The audit API currently returns one completed
  * response and does not emit backend stage events. Keep these labels neutral
  * and expose their estimated source so the UI can identify them honestly.
  */
 export const ESTIMATED_BEATS = [
-  { beat: 'A', activity: 'Preparing your sources', afterMs: 700 },
-  { beat: 'B', activity: 'Comparing claims with sources', afterMs: 1000 },
-  { beat: 'C', activity: 'Organizing findings', afterMs: 1000 },
+  { beat: 'A', activity: 'Preparing your sources', afterMs: SCENE_TIMING.BEAT_A },
+  { beat: 'B', activity: 'Comparing claims with sources', afterMs: SCENE_TIMING.BEAT_B },
+  { beat: 'C', activity: 'Organizing findings', afterMs: SCENE_TIMING.BEAT_C },
 ] as const
 
 export type BeatId = (typeof ESTIMATED_BEATS)[number]['beat']

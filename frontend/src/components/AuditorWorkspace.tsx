@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, ShieldCheck, AlertCircle, PlusCircle } from 'lucide-react'
 import type { AuditResponse, HealthResponse } from '../api/client'
 import { submitAudit } from '../api/client'
@@ -8,16 +8,16 @@ import { OriginalAnswerViewer } from './OriginalAnswerViewer'
 import { ClaimList } from './ClaimList'
 import { EvidencePanel } from './EvidencePanel'
 import { ThinkingState } from './ThinkingState'
-// Scene machine hook (phase 3a): lifecycle and estimated events only; no visuals.
 import { sceneMachine } from '../scene/sceneMachine'
 import type { SceneMachineState } from '../scene/sceneMachine'
-import { getStageEvents } from '../scene/stageEvents'
+import { JourneyCoordinator } from '../scene/journeyQueue'
 
 interface AuditorWorkspaceProps {
   isOpen: boolean
   onClose: () => void
   setSceneOverlayVisible: (visible: boolean) => void
   onSceneStateChange: (state: SceneMachineState) => void
+  isSceneOverlayVisible?: boolean
   health: HealthResponse | null
   activeAudit: AuditResponse | null
   setActiveAudit: (audit: AuditResponse | null) => void
@@ -31,6 +31,7 @@ export function AuditorWorkspace({
   onClose,
   setSceneOverlayVisible,
   onSceneStateChange,
+  isSceneOverlayVisible = false,
   health,
   activeAudit,
   setActiveAudit,
@@ -40,7 +41,14 @@ export function AuditorWorkspace({
 }: AuditorWorkspaceProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const stageEventsAbortRef = useRef<AbortController | null>(null)
+  const coordinatorRef = useRef<JourneyCoordinator<AuditResponse> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      coordinatorRef.current?.dispose()
+      coordinatorRef.current = null
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -51,55 +59,47 @@ export function AuditorWorkspace({
     urls?: string[],
     enableWebSearch?: boolean
   ) => {
-    stageEventsAbortRef.current?.abort()
-    const stageEventsAbort = new AbortController()
-    stageEventsAbortRef.current = stageEventsAbort
-    sceneMachine.dispatch({ type: 'AUDIT_STARTED' })
-    onSceneStateChange(sceneMachine.getState())
-    setSceneOverlayVisible(true)
-
-    void (async () => {
-      for await (const event of getStageEvents({ signal: stageEventsAbort.signal })) {
-        sceneMachine.dispatch({ type: 'STAGE_EVENT', event })
-        onSceneStateChange(sceneMachine.getState())
-      }
-    })()
+    // Prevent overlapping journeys or double clicks
+    if (coordinatorRef.current?.isActive()) {
+      return
+    }
 
     setLoading(true)
     setError(null)
 
-    try {
-      const response = await submitAudit(answer, sourceText, files, urls, enableWebSearch)
-      sceneMachine.dispatch({ type: 'AUDIT_COMPLETED' })
-      onSceneStateChange(sceneMachine.getState())
-      setActiveAudit(response)
-      if (response.findings.length > 0) {
-        setSelectedClaimId(response.findings[0].claim_id)
-      }
-    } catch (err: unknown) {
-      sceneMachine.dispatch({ type: 'AUDIT_FAILED' })
-      onSceneStateChange(sceneMachine.getState())
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('An unexpected error occurred during the audit.')
-      }
-    } finally {
-      stageEventsAbort.abort()
-      if (stageEventsAbortRef.current === stageEventsAbort) {
-        stageEventsAbortRef.current = null
-      }
-      setLoading(false)
-      setSceneOverlayVisible(false)
-    }
+    const auditPromise = submitAudit(answer, sourceText, files, urls, enableWebSearch)
+    const isReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    const coordinator = new JourneyCoordinator<AuditResponse>({
+      auditPromise,
+      isReducedMotion,
+      sceneMachine,
+      onStateChange: onSceneStateChange,
+      onOverlayVisibilityChange: setSceneOverlayVisible,
+      onSuccess: (response) => {
+        setLoading(false)
+        setActiveAudit(response)
+        if (response.findings.length > 0) {
+          setSelectedClaimId(response.findings[0].claim_id)
+        }
+      },
+      onError: (err) => {
+        setLoading(false)
+        setError(err.message || 'An unexpected error occurred during the audit.')
+      },
+    })
+
+    coordinatorRef.current = coordinator
+    coordinator.start()
   }
 
   const handleReset = () => {
-    stageEventsAbortRef.current?.abort()
-    stageEventsAbortRef.current = null
+    coordinatorRef.current?.cancel()
+    coordinatorRef.current = null
     setSceneOverlayVisible(false)
     sceneMachine.dispatch({ type: 'RESET_REQUESTED' })
-    // Phase 3a has no visuals; later reset motion can delay this completion.
     sceneMachine.dispatch({ type: 'RESET_COMPLETED' })
     setActiveAudit(null)
     setSelectedClaimId(null)
@@ -112,7 +112,11 @@ export function AuditorWorkspace({
     null
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-md animate-fadeIn">
+    <div
+      className={`fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-md transition-opacity duration-500 ${
+        isSceneOverlayVisible ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'
+      }`}
+    >
       <div className="obsidian-glass rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden silver-rim">
         {/* Workspace Top Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#0d0d0d]/80 shrink-0">
