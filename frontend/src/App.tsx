@@ -5,7 +5,6 @@ import { VideoPlate } from './components/VideoPlate'
 import { MistLayer } from './components/MistLayer'
 import { TopBar } from './components/TopBar'
 import { HeroContent } from './components/HeroContent'
-import { PartnerLogos } from './components/PartnerLogos'
 import { MobileMenu } from './components/MobileMenu'
 import { AuditorWorkspace } from './components/AuditorWorkspace'
 // Phase 3(c): additive door transition overlay; Scene 1 remains unchanged.
@@ -124,9 +123,6 @@ export default function App() {
         onOpenAuditor={handleOpenAuditor}
         onLoadSample={handleLoadSample}
       />
-
-      {/* Bottom Partner Strip: 4 Logoipsum marks */}
-      <PartnerLogos />
 
       {/* Obsidian Frosted Glass Workspace Modal Overlay */}
       <AuditorWorkspace
