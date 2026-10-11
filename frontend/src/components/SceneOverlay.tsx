@@ -3,6 +3,7 @@ import type { SceneMachineState } from '../scene/sceneMachine'
 import { sceneMachine } from '../scene/sceneMachine'
 import { SCENE_TIMING } from '../scene/timing'
 import { SpaceField } from './SpaceField'
+import { SpacecraftCraft } from './SpacecraftCraft'
 import './scene.css'
 
 /** Phase 3(d): additive space journey layer; the approved workspace remains underneath. */
@@ -21,7 +22,7 @@ export function SceneOverlay({
   const isEstimate = state.activitySource === 'ESTIMATED_BEATS'
   const activity = state.currentActivity ?? 'Starting your audit'
   const activityWords = activity.split(/\s+/)
-  const isJourneyActive = state.scene.startsWith('THINKING_')
+  const isJourneyActive = state.scene.startsWith('THINKING_') || state.scene === 'ARRIVAL'
   const dataSide = state.currentBeat === 'B' ? 'left' : 'right'
   const finishedRef = useRef(false)
   const onFinishedRef = useRef(onFinished)
@@ -96,7 +97,9 @@ export function SceneOverlay({
     >
       <div className="scene-space-layer" aria-hidden="true">
         <SpaceField active={isJourneyActive} />
-        <div className="scene-space-focal" />
+        <div className="scene-space-focal">
+          <SpacecraftCraft />
+        </div>
         <div className="scene-evidence-fragments">
           <span />
           <span />
@@ -109,7 +112,7 @@ export function SceneOverlay({
       <div className="scene-door-status">
         {isJourneyActive && (
           <span className="scene-thinking-heading">
-            <span className="scene-thinking-kicker">Thinking</span>
+            <span className="scene-thinking-kicker">Evidence Audit In Progress</span>
             <span className="scene-ticker" aria-hidden="true">{elapsedMs} ms</span>
           </span>
         )}

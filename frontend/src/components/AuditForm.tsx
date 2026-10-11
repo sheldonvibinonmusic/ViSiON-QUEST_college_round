@@ -139,24 +139,21 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
   // PHASE 3(b) ADDITION: keyboard shortcut submits through the existing validation and Run flow.
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6 text-[var(--ink)]">
-      {/* Sample Loader Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/10">
+      {/* Workspace Form Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
         <div>
-          <h2 className="text-base font-medium text-white">Submit Answer for Evidence Audit</h2>
-          <p className="text-xs text-[var(--muted)]">
-            Compare an AI answer against your textbook, report, web pages, or source documents.
+          <h2 className="text-base font-semibold text-white tracking-tight">Submit Answer for Evidence Audit</h2>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            Cross-examine AI assertions against textbooks, reports, web pages, or reference documents.
           </p>
         </div>
         <button
           type="button"
           onClick={handleLoadSample}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white/90 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/30 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-white/90 bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 hover:border-white/30 transition-all cursor-pointer self-start sm:self-auto shrink-0 shadow-xs"
         >
-          <Sparkles className="w-3.5 h-3.5 text-zinc-300" /> Load Sample Policy
+          <Sparkles className="w-3.5 h-3.5 text-sky-400" /> Load Sample Policy
         </button>
-        <p className="mt-2 text-center text-[11px] text-neutral-500">
-          Press Ctrl+Enter or ⌘+Enter to run
-        </p>
       </div>
 
       {validationError && (
@@ -170,7 +167,7 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label htmlFor="audit-answer-input" className="text-xs font-semibold text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-zinc-400" /> AI-Generated Answer to Audit
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" /> AI-Generated Answer to Audit
           </label>
           <span className="text-[11px] text-neutral-500 font-mono">
             {answer.length.toLocaleString()} / 40,000 characters
@@ -183,35 +180,35 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
           placeholder="Paste the AI-generated answer you want to verify against source evidence... (Press Ctrl+Enter to submit)"
           rows={5}
           disabled={loading}
-          className="w-full p-3.5 rounded-xl border border-white/10 bg-[#0c0c0c] text-neutral-100 text-sm focus:border-white/30 focus:outline-none transition-all placeholder:text-neutral-600 font-sans"
+          className="w-full p-4 rounded-xl border border-white/10 bg-[#0c0c0c] text-neutral-100 text-sm leading-relaxed focus:border-sky-500/40 focus:ring-1 focus:ring-sky-500/20 focus:outline-none transition-all placeholder:text-neutral-600 font-sans custom-scrollbar"
         />
       </div>
 
       {/* Source Input Section */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5 text-zinc-400" /> Reference Ground Truth Sources
+            <FileText className="w-3.5 h-3.5 text-sky-400" /> Reference Ground Truth Sources
           </label>
           {/* Source Tabs */}
           <div className="flex bg-[#141414] p-1 rounded-full text-xs font-medium border border-white/10 self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setActiveTab('paste')}
-              className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'paste'
-                  ? 'bg-white/15 text-white font-semibold'
+                  ? 'bg-white/15 text-white font-semibold shadow-xs'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              Paste Text
+              <FileText className="w-3 h-3" /> Paste Text
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('upload')}
               className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
                 activeTab === 'upload'
-                  ? 'bg-white/15 text-white font-semibold'
+                  ? 'bg-white/15 text-white font-semibold shadow-xs'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
@@ -222,11 +219,11 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
               onClick={() => setActiveTab('urls')}
               className={`px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'urls'
-                  ? 'bg-white/15 text-white font-semibold'
+                  ? 'bg-white/15 text-white font-semibold shadow-xs'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              <Globe className="w-3 h-3" /> Web URLs {urls.length > 0 && `(${urls.length})`}
+              <Globe className="w-3 h-3 text-sky-400" /> Web URLs {urls.length > 0 && `(${urls.length})`}
             </button>
           </div>
         </div>
@@ -362,28 +359,32 @@ export function AuditForm({ onSubmit, loading, initialAnswer = '', initialSource
         </label>
       </div>
 
-      {/* Submit Button */}
-      <div className="pt-2">
+      {/* Submit Button & Shortcut Bar */}
+      <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
         <button
           type="submit"
           disabled={loading}
-          className={`w-full py-3.5 px-6 rounded-full font-medium text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+          className={`flex-1 w-full py-3.5 px-6 rounded-full font-medium text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer ${
             loading
-              ? 'bg-neutral-700 text-neutral-300 cursor-not-allowed'
-              : 'bg-white text-[#050505] hover:bg-[#ededed] active:scale-[0.99] shadow-lg shadow-white/5'
+              ? 'bg-neutral-800 text-neutral-400 border border-white/10 cursor-not-allowed'
+              : 'bg-white text-black hover:bg-neutral-100 active:scale-[0.99] shadow-[0_0_24px_rgba(255,255,255,0.15)] hover:shadow-[0_0_32px_rgba(255,255,255,0.25)]'
           }`}
         >
           {loading ? (
             <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Auditing Answer Against Sources...
+              <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
+              <span>Auditing Answer Against Sources...</span>
             </>
           ) : (
             <>
-              <Send className="w-4 h-4" /> Run Evidence Audit
+              <Send className="w-4 h-4 text-black" />
+              <span>Run Evidence Audit</span>
             </>
           )}
         </button>
+        <span className="hidden sm:inline-flex items-center text-[11px] font-mono text-neutral-400 shrink-0 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 select-none">
+          <kbd className="font-sans text-neutral-300">Ctrl</kbd> + <kbd className="font-sans text-neutral-300">Enter</kbd>
+        </span>
       </div>
     </form>
   )

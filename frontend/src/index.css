@@ -83,6 +83,11 @@ body,
   background-color: var(--stage);
 }
 
+.hero {
+  position: relative;
+  z-index: 20;
+}
+
 /* Video Plate */
 .plate {
   position: absolute;
@@ -180,10 +185,11 @@ body,
   }
   .headline {
     position: static !important;
-    font-size: clamp(34px, 8.5vw, 54px) !important;
-    line-height: 1.15 !important;
+    font-size: clamp(30px, 7.5vw, 48px) !important;
+    line-height: 1.18 !important;
     white-space: normal !important;
     letter-spacing: -0.02em !important;
+    min-height: 140px !important;
   }
   .sub {
     position: static !important;
@@ -304,15 +310,40 @@ body,
   }
 }
 
+/* Rotating Cinematic Headline Cycle */
+.headline-cycle-item {
+  display: block;
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 700ms ease;
+  will-change: transform, opacity;
+}
+
+.headline-cycle-item.phase-entering {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(2px);
+}
+
+.headline-cycle-item.phase-holding {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.headline-cycle-item.phase-exiting {
+  opacity: 0;
+  transform: translateY(-12px);
+  filter: blur(2px);
+  transition: opacity 700ms cubic-bezier(0.7, 0, 0.84, 0), transform 700ms cubic-bezier(0.7, 0, 0.84, 0), filter 700ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001s !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001s !important;
+  .headline-cycle-item {
+    transition: none !important;
+    transform: none !important;
+    filter: none !important;
   }
 }
+
 
 /* Obsidian Glass Surface (Direction 1) */
 .obsidian-glass {

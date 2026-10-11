@@ -1,24 +1,67 @@
+import { useEffect, useState } from 'react'
+import { HEADLINE_MESSAGES } from '../constants/headlines'
+
 interface HeroContentProps {
   onOpenAuditor: () => void
   onLoadSample: () => void
 }
 
 export function HeroContent({ onOpenAuditor, onLoadSample }: HeroContentProps) {
+  const [index, setIndex] = useState(0)
+  const [phase, setPhase] = useState<'entering' | 'holding' | 'exiting'>('holding')
+
+  useEffect(() => {
+    const isReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (isReduced) {
+      const interval = window.setInterval(() => {
+        setIndex((prev) => (prev + 1) % HEADLINE_MESSAGES.length)
+      }, 4000)
+      return () => window.clearInterval(interval)
+    }
+
+    const enterTimer = window.setTimeout(() => {
+      setPhase('holding')
+    }, 60)
+
+    const exitTimer = window.setTimeout(() => {
+      setPhase('exiting')
+    }, 3100)
+
+    const nextTimer = window.setTimeout(() => {
+      setPhase('entering')
+      setIndex((prev) => (prev + 1) % HEADLINE_MESSAGES.length)
+    }, 3950)
+
+    return () => {
+      window.clearTimeout(enterTimer)
+      window.clearTimeout(exitTimer)
+      window.clearTimeout(nextTimer)
+    }
+  }, [index])
+
   return (
-    <main className="hero pointer-events-none select-none z-20">
+    <main className="hero relative pointer-events-none select-none z-20">
       {/* Headline: left 75.5u, top 230.5u */}
       <h1
         className="headline anim-rise-headline absolute text-[var(--ink)] font-normal tracking-[0.3px]"
+        aria-live="polite"
+        aria-atomic="true"
         style={{
           left: 'calc(75.5 * var(--u))',
           top: 'calc(230.5 * var(--u))',
-          fontSize: 'calc(71.6 * var(--h))',
-          lineHeight: 'calc(80.5 * var(--h))',
-          letterSpacing: 'calc(0.3 * var(--h))',
+          maxWidth: 'calc(840 * var(--u))',
+          minHeight: 'calc(165 * var(--h))',
+          fontSize: 'calc(68 * var(--h))',
+          lineHeight: 'calc(78 * var(--h))',
+          letterSpacing: 'calc(0.2 * var(--h))',
         }}
       >
-        <span className="block whitespace-nowrap">Where AI meets</span>
-        <span className="block whitespace-nowrap">absolute truth.</span>
+        <span className={`headline-cycle-item phase-${phase} block`}>
+          {HEADLINE_MESSAGES[index]}
+        </span>
       </h1>
 
       {/* Subcopy: left 75.5u, top: 230.5u + 189.0h */}

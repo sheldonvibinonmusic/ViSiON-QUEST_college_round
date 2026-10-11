@@ -1,17 +1,36 @@
 # Changelog
 
-## Phase 3(d) — Space journey and side swaps
-- Added one full-screen, low-detail Canvas 2D star layer and a CSS focal cluster that glides opposite the thinking panel.
-- Connected the existing scene overlay to the mirrored scene-state events so the A/B/C layout follows `getStageEvents()` while actual backend activity text remains event-sourced.
-- Added the approved silver text sweep, word cross-fades, estimated-beat rail, elapsed-millisecond ticker, and abstract drifting evidence marks.
-- Kept the existing doorway transition, Run flow, workspace modal, and results lifecycle; planet, asteroid, and black-hole visuals remain for Phase 3(e).
+## [0.9.0] - Complete UI/UX Refinement, Rotating Cinematic Headline & Cinematic Evidence Audit Journey
 
-## Phase 3(c) — Door opening transition
-- Added an isolated, full-screen doorway overlay with a 700 ms CSS camera push, growing light slit, and one smooth white flash; the existing video and poster assets remain untouched.
-- Measured the video doorway center from a decoded 1664×1248 frame at 2.51 s and accounted for the existing poster fallback's separate center.
-- Added keyboard-accessible Skip and Cancel animation controls; reduced-motion and mobile modes omit the push and flash.
+### Added
+- **Four-Message Animated Rotating Headline** (`frontend/src/components/HeroContent.tsx`, `frontend/src/constants/headlines.ts`, `frontend/src/tests/headline.test.ts`):
+  - Oversized cinematic rotating headline sequence cycling every ~4s with smooth enter (~700ms), stable hold (~2.4s), smooth exit (~700ms), and continuous loop.
+  - Cycle sequence:
+    1. "Where hallucinations come to an end."
+    2. "Your AI fact-checking copilot."
+    3. "Cross-check AI answers against PDFs, URLs, and source documents."
+    4. "Find the claims supported by evidence—and the ones that aren't."
+  - Fixed-height bounding box ensuring zero layout shift across desktop and mobile.
+  - Screen-reader accessible with `aria-live="polite"` and `aria-atomic="true"`.
+  - Immediate clickability maintained for "Open Auditor" and "Load Sample Policy" CTAs.
+  - Vitest test suite (`frontend/src/tests/headline.test.ts`) asserting 4-message sequence and cycle wrap.
+- **Cinematic Evidence Audit Space Journey** (`frontend/src/components/SpacecraftCraft.tsx`, `frontend/src/components/SpaceField.tsx`, `frontend/src/components/SceneOverlay.tsx`, `frontend/src/components/scene.css`):
+  - Left-right desktop composition featuring a sleek forward-left exploration spacecraft with animated ion plasma thruster plumes and micro-drift orbital float.
+  - Majestic planetary horizon arc rendered in Canvas 2D in the lower-left sector with dark obsidian mantle, deep atmospheric navy, rich orbital blue, and luminous cyan ozone halo.
+  - Horizontal cosmic star velocity streaming and foreground streak trails matching forward-left spacecraft momentum.
+  - Polished audit status panel on the right side with neutral stage labels ("Evidence Audit In Progress"), live ms ticker, animated word reveals, and 3-milestone progress rail.
+  - Smooth 1200ms cubic bezier side-swap transition during Beat B.
+  - Instant Skip button immediately jumping to ready results, and Cancel button cleanly retreating to workspace.
 
-All completed project changes are documented in this file. Uncompleted or planned changes are never recorded as done.
+### Refactored
+- **Open Auditor & Workspace Polish** (`frontend/src/components/AuditForm.tsx`, `frontend/src/components/AuditorWorkspace.tsx`):
+  - Decongested form layout with clean 2-column header aligning title, description, and "Load Sample Policy" button.
+  - Refined AI Answer textarea with character counter (`/ 40,000`), custom scrollbar, comfortable line height, and sky orbital focus ring.
+  - Refined Source Material Tabs ("Paste Text", "Upload Files", "Web URLs") with icons and active indicators.
+  - Refined action bar with primary "Run Evidence Audit" pill button, orbital glow, loading spinner, and keyboard shortcut pill (`Ctrl + Enter`).
+  - Polished Auditor Workspace modal header with orbital shield badge and verifier mode pill.
+  - Relative positioning enforced on `.hero` root container in `index.css` resolving desktop layering.
+
 
 ## [0.8.0] - Contract Synchronization, Verification Tooling & Telemetry Encodings
 
